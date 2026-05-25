@@ -281,3 +281,136 @@ body{
   .expense-summary-grid{grid-template-columns:1fr;}
   .expense-shell .table-wrap table:not(.expense-print-table) td{grid-template-columns:1fr;gap:4px;}
 }
+
+/* Expense module edge cleanup - removes nested small corner artifacts */
+.expense-shell .card:last-child,
+.expense-shell .card.expense-list-card{
+  overflow:visible !important;
+}
+
+.expense-shell .card:last-child .table-wrap,
+.expense-shell .table-wrap.expense-list-wrap{
+  margin-top:14px !important;
+  background:transparent !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  overflow:visible !important;
+}
+
+.expense-shell .table-wrap table:not(.expense-print-table){
+  width:100% !important;
+  border-collapse:separate !important;
+  border-spacing:0 12px !important;
+  background:transparent !important;
+}
+
+.expense-shell .table-wrap table:not(.expense-print-table) thead th{
+  background:transparent !important;
+  border:0 !important;
+  padding:0 18px 7px !important;
+  color:#5a756f !important;
+  font-size:12px !important;
+}
+
+.expense-shell .table-wrap table:not(.expense-print-table) tbody tr{
+  background:transparent !important;
+  border-radius:0 !important;
+  box-shadow:0 12px 28px rgba(15,118,110,.055) !important;
+  transform:none !important;
+}
+
+.expense-shell .table-wrap table:not(.expense-print-table) tbody tr:hover{
+  transform:translateY(-1px) !important;
+}
+
+.expense-shell .table-wrap table:not(.expense-print-table) tbody td{
+  background:linear-gradient(145deg,#ffffff,#fbfffe) !important;
+  border-top:1px solid rgba(15,118,110,.13) !important;
+  border-bottom:1px solid rgba(15,118,110,.13) !important;
+  border-left:0 !important;
+  border-right:0 !important;
+  padding:17px 18px !important;
+}
+
+.expense-shell .table-wrap table:not(.expense-print-table) tbody td:first-child{
+  border-left:1px solid rgba(15,118,110,.13) !important;
+  border-radius:24px 0 0 24px !important;
+}
+
+.expense-shell .table-wrap table:not(.expense-print-table) tbody td:last-child{
+  border-right:1px solid rgba(15,118,110,.13) !important;
+  border-radius:0 24px 24px 0 !important;
+}
+
+.expense-shell .table-wrap table:not(.expense-print-table) tbody tr:last-child td{
+  border-bottom:1px solid rgba(15,118,110,.13) !important;
+}
+
+.expense-shell .table-wrap .btn,
+.expense-shell .table-wrap button{
+  border-radius:15px !important;
+}
+
+.expense-shell .filters.card,
+.expense-shell .hero,
+.expense-shell > .card,
+.expense-shell form.card[data-expense-form],
+.expense-shell form[data-expense-form].card{
+  border-radius:32px !important;
+}
+
+.expense-form-head,
+.expense-builder-head,
+.expense-entry-card,
+.expense-amount-grid,
+.expense-totals-panel,
+.expense-actions-row{
+  border-radius:30px !important;
+}
+
+.expense-entry-card,
+.expense-builder-head,
+.expense-totals-panel,
+.expense-actions-row{
+  box-shadow:0 14px 34px rgba(15,118,110,.065) !important;
+}
+
+.expense-entry-card:before{
+  top:12px !important;
+  left:22px !important;
+  right:22px !important;
+  height:5px !important;
+  border-radius:999px !important;
+}
+
+@media(max-width:820px){
+  .expense-shell .table-wrap table:not(.expense-print-table){border-spacing:0 12px !important;}
+  .expense-shell .table-wrap table:not(.expense-print-table),
+  .expense-shell .table-wrap table:not(.expense-print-table) thead,
+  .expense-shell .table-wrap table:not(.expense-print-table) tbody,
+  .expense-shell .table-wrap table:not(.expense-print-table) tr,
+  .expense-shell .table-wrap table:not(.expense-print-table) td{
+    display:block !important;
+  }
+  .expense-shell .table-wrap table:not(.expense-print-table) thead{display:none !important;}
+  .expense-shell .table-wrap table:not(.expense-print-table) tbody tr{
+    border:1px solid rgba(15,118,110,.13) !important;
+    border-radius:28px !important;
+    overflow:hidden !important;
+    background:linear-gradient(145deg,#ffffff,#fbfffe) !important;
+  }
+  .expense-shell .table-wrap table:not(.expense-print-table) tbody td,
+  .expense-shell .table-wrap table:not(.expense-print-table) tbody td:first-child,
+  .expense-shell .table-wrap table:not(.expense-print-table) tbody td:last-child{
+    border:0 !important;
+    border-bottom:1px solid rgba(15,118,110,.08) !important;
+    border-radius:0 !important;
+    display:grid !important;
+    grid-template-columns:120px 1fr !important;
+    gap:12px !important;
+    align-items:center !important;
+    padding:13px 16px !important;
+  }
+  .expense-shell .table-wrap table:not(.expense-print-table) tbody td:last-child{border-bottom:0 !important;}
+}
