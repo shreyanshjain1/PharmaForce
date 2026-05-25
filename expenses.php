@@ -197,7 +197,7 @@ if ($action === 'new' || $action === 'edit') {
         $items = $itemStmt->fetchAll();
     }
 
-    $rowTarget = max(10, count($items) + 3);
+    $rowTarget = max(5, count($items) + 2);
     ?>
     <div class="expense-shell">
         <div class="hero">
@@ -229,48 +229,88 @@ if ($action === 'new' || $action === 'edit') {
                 </div>
             </div>
 
-            <br>
-            <div class="expense-table-wrap">
-                <table class="expense-table" data-expense-table>
-                    <thead>
-                        <tr>
-                            <th>Date</th><th>Particulars</th><th>Gasoline</th><th>Toll</th><th>Parking</th><th>Transportation</th><th>Representation</th><th>Accommodation</th><th>Others</th><th>Total</th><th>Remarks</th><th>Receipt</th><th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
+            <div class="expense-builder" data-expense-builder>
+                <div class="expense-builder-head">
+                    <div>
+                        <span class="eyebrow">Expense Entries</span>
+                        <h3>Add expenses by row</h3>
+                        <p>Each card is one expense entry. This layout is built to fit tablets cleanly without sideways scrolling.</p>
+                    </div>
+                    <button type="button" class="btn ghost" data-add-expense-row>Add Row</button>
+                </div>
+
+                <div class="expense-row-list">
                     <?php for ($i = 0; $i < $rowTarget; $i++): $item = $items[$i] ?? []; ?>
-                        <tr data-expense-row>
-                            <td><input class="expense-date" type="date" name="expense_date[]" value="<?= e($item['expense_date'] ?? '') ?>"></td>
-                            <td><textarea class="expense-particulars" name="particulars[]" placeholder="Example: Angkas going to hospital"><?= e($item['particulars'] ?? '') ?></textarea></td>
-                            <?php foreach (['gasoline','toll','parking','transportation','representation','accommodation','others'] as $col): ?>
-                                <td><input data-expense-amount type="number" step="0.01" min="0" name="<?= $col ?>[]" value="<?= e((string)($item[$col] ?? '')) ?>"></td>
-                            <?php endforeach; ?>
-                            <td class="expense-row-total">₱0.00</td>
-                            <td><textarea class="expense-remarks" name="remarks[]" placeholder="Optional note"><?= e($item['remarks'] ?? '') ?></textarea></td>
-                            <td>
-                                <input type="hidden" name="existing_receipt_path[]" value="<?= e($item['receipt_path'] ?? '') ?>">
-                                <input type="file" name="receipt_<?= $i ?>" accept="image/*,.pdf">
-                                <?php if (!empty($item['receipt_path'])): ?><div class="expense-file-note"><a target="_blank" href="<?= e($item['receipt_path']) ?>">Current receipt</a></div><?php endif; ?>
-                            </td>
-                            <td><button type="button" class="btn small ghost" data-remove-expense-row>Remove</button></td>
-                        </tr>
+                        <div class="expense-entry-card" data-expense-row>
+                            <div class="expense-entry-top">
+                                <div class="field expense-date-field">
+                                    <label>Date</label>
+                                    <input class="expense-date" type="date" name="expense_date[]" value="<?= e($item['expense_date'] ?? '') ?>">
+                                </div>
+                                <div class="field expense-particulars-field">
+                                    <label>Particulars</label>
+                                    <textarea class="expense-particulars" name="particulars[]" placeholder="Example: Angkas going to hospital"><?= e($item['particulars'] ?? '') ?></textarea>
+                                </div>
+                                <div class="expense-card-total">
+                                    <span>Row Total</span>
+                                    <strong class="expense-row-total">₱0.00</strong>
+                                </div>
+                            </div>
+
+                            <div class="expense-amount-grid">
+                                <?php foreach ([
+                                    'gasoline' => 'Gasoline',
+                                    'toll' => 'Toll',
+                                    'parking' => 'Parking',
+                                    'transportation' => 'Transportation',
+                                    'representation' => 'Representation',
+                                    'accommodation' => 'Accommodation',
+                                    'others' => 'Others',
+                                ] as $col => $label): ?>
+                                    <div class="field compact-money-field">
+                                        <label><?= e($label) ?></label>
+                                        <input data-expense-amount type="number" step="0.01" min="0" name="<?= e($col) ?>[]" value="<?= e((string)($item[$col] ?? '')) ?>" placeholder="0.00">
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+
+                            <div class="expense-entry-bottom">
+                                <div class="field expense-remarks-field">
+                                    <label>Remarks</label>
+                                    <textarea class="expense-remarks" name="remarks[]" placeholder="Optional note"><?= e($item['remarks'] ?? '') ?></textarea>
+                                </div>
+
+                                <div class="field expense-receipt-field">
+                                    <label>Receipt</label>
+                                    <input type="hidden" name="existing_receipt_path[]" value="<?= e($item['receipt_path'] ?? '') ?>">
+                                    <label class="receipt-upload-box">
+                                        <input type="file" name="receipt_<?= $i ?>" accept="image/*,.pdf">
+                                        <span>Upload receipt</span>
+                                        <small>Image or PDF</small>
+                                    </label>
+                                    <?php if (!empty($item['receipt_path'])): ?>
+                                        <div class="expense-file-note"><a target="_blank" href="<?= e($item['receipt_path']) ?>">Current receipt</a></div>
+                                    <?php endif; ?>
+                                </div>
+
+                                <div class="expense-remove-wrap">
+                                    <button type="button" class="btn small ghost" data-remove-expense-row>Remove</button>
+                                </div>
+                            </div>
+                        </div>
                     <?php endfor; ?>
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan="2">TOTAL</td>
-                            <td data-total-col="gasoline">₱0.00</td>
-                            <td data-total-col="toll">₱0.00</td>
-                            <td data-total-col="parking">₱0.00</td>
-                            <td data-total-col="transportation">₱0.00</td>
-                            <td data-total-col="representation">₱0.00</td>
-                            <td data-total-col="accommodation">₱0.00</td>
-                            <td data-total-col="others">₱0.00</td>
-                            <td data-grand-total>₱0.00</td>
-                            <td colspan="3"></td>
-                        </tr>
-                    </tfoot>
-                </table>
+                </div>
+
+                <div class="expense-totals-panel">
+                    <div class="expense-total-card"><span>Gasoline</span><strong data-total-col="gasoline">₱0.00</strong></div>
+                    <div class="expense-total-card"><span>Toll</span><strong data-total-col="toll">₱0.00</strong></div>
+                    <div class="expense-total-card"><span>Parking</span><strong data-total-col="parking">₱0.00</strong></div>
+                    <div class="expense-total-card"><span>Transportation</span><strong data-total-col="transportation">₱0.00</strong></div>
+                    <div class="expense-total-card"><span>Representation</span><strong data-total-col="representation">₱0.00</strong></div>
+                    <div class="expense-total-card"><span>Accommodation</span><strong data-total-col="accommodation">₱0.00</strong></div>
+                    <div class="expense-total-card"><span>Others</span><strong data-total-col="others">₱0.00</strong></div>
+                    <div class="expense-total-card grand"><span>Grand Total</span><strong data-grand-total>₱0.00</strong></div>
+                </div>
             </div>
 
             <div class="expense-actions-row">
@@ -284,21 +324,52 @@ if ($action === 'new' || $action === 'edit') {
     </div>
 
     <template id="expense-row-template">
-        <tr data-expense-row>
-            <td><input class="expense-date" type="date" name="expense_date[]"></td>
-            <td><textarea class="expense-particulars" name="particulars[]" placeholder="Example: Parking at hospital"></textarea></td>
-            <td><input data-expense-amount type="number" step="0.01" min="0" name="gasoline[]"></td>
-            <td><input data-expense-amount type="number" step="0.01" min="0" name="toll[]"></td>
-            <td><input data-expense-amount type="number" step="0.01" min="0" name="parking[]"></td>
-            <td><input data-expense-amount type="number" step="0.01" min="0" name="transportation[]"></td>
-            <td><input data-expense-amount type="number" step="0.01" min="0" name="representation[]"></td>
-            <td><input data-expense-amount type="number" step="0.01" min="0" name="accommodation[]"></td>
-            <td><input data-expense-amount type="number" step="0.01" min="0" name="others[]"></td>
-            <td class="expense-row-total">₱0.00</td>
-            <td><textarea class="expense-remarks" name="remarks[]" placeholder="Optional note"></textarea></td>
-            <td><input type="hidden" name="existing_receipt_path[]" value=""><input type="file" name="receipt_new[]" accept="image/*,.pdf"><div class="expense-file-note">New rows can save without receipt, or attach one later after saving.</div></td>
-            <td><button type="button" class="btn small ghost" data-remove-expense-row>Remove</button></td>
-        </tr>
+        <div class="expense-entry-card" data-expense-row>
+            <div class="expense-entry-top">
+                <div class="field expense-date-field">
+                    <label>Date</label>
+                    <input class="expense-date" type="date" name="expense_date[]">
+                </div>
+                <div class="field expense-particulars-field">
+                    <label>Particulars</label>
+                    <textarea class="expense-particulars" name="particulars[]" placeholder="Example: Parking at hospital"></textarea>
+                </div>
+                <div class="expense-card-total">
+                    <span>Row Total</span>
+                    <strong class="expense-row-total">₱0.00</strong>
+                </div>
+            </div>
+
+            <div class="expense-amount-grid">
+                <div class="field compact-money-field"><label>Gasoline</label><input data-expense-amount type="number" step="0.01" min="0" name="gasoline[]" placeholder="0.00"></div>
+                <div class="field compact-money-field"><label>Toll</label><input data-expense-amount type="number" step="0.01" min="0" name="toll[]" placeholder="0.00"></div>
+                <div class="field compact-money-field"><label>Parking</label><input data-expense-amount type="number" step="0.01" min="0" name="parking[]" placeholder="0.00"></div>
+                <div class="field compact-money-field"><label>Transportation</label><input data-expense-amount type="number" step="0.01" min="0" name="transportation[]" placeholder="0.00"></div>
+                <div class="field compact-money-field"><label>Representation</label><input data-expense-amount type="number" step="0.01" min="0" name="representation[]" placeholder="0.00"></div>
+                <div class="field compact-money-field"><label>Accommodation</label><input data-expense-amount type="number" step="0.01" min="0" name="accommodation[]" placeholder="0.00"></div>
+                <div class="field compact-money-field"><label>Others</label><input data-expense-amount type="number" step="0.01" min="0" name="others[]" placeholder="0.00"></div>
+            </div>
+
+            <div class="expense-entry-bottom">
+                <div class="field expense-remarks-field">
+                    <label>Remarks</label>
+                    <textarea class="expense-remarks" name="remarks[]" placeholder="Optional note"></textarea>
+                </div>
+                <div class="field expense-receipt-field">
+                    <label>Receipt</label>
+                    <input type="hidden" name="existing_receipt_path[]" value="">
+                    <label class="receipt-upload-box">
+                        <input type="file" name="receipt_new[]" accept="image/*,.pdf">
+                        <span>Upload receipt</span>
+                        <small>Image or PDF</small>
+                    </label>
+                    <div class="expense-file-note">New rows can save without receipt, or attach one later after saving.</div>
+                </div>
+                <div class="expense-remove-wrap">
+                    <button type="button" class="btn small ghost" data-remove-expense-row>Remove</button>
+                </div>
+            </div>
+        </div>
     </template>
     <?php
 } elseif ($action === 'view' && $id > 0) {
@@ -473,14 +544,13 @@ if ($action === 'new' || $action === 'edit') {
 (function(){
   const form = document.querySelector('[data-expense-form]');
   if(!form) return;
-  const table = form.querySelector('[data-expense-table]');
-  const tbody = table.querySelector('tbody');
+  const rowList = form.querySelector('.expense-row-list');
   const template = document.getElementById('expense-row-template');
   const peso = new Intl.NumberFormat('en-PH',{style:'currency',currency:'PHP'});
   const amountNames = ['gasoline','toll','parking','transportation','representation','accommodation','others'];
   function amount(input){ return Number.parseFloat(input.value || '0') || 0; }
   function refreshNames(){
-    tbody.querySelectorAll('[data-expense-row]').forEach((row, idx)=>{
+    rowList.querySelectorAll('[data-expense-row]').forEach((row, idx)=>{
       const file = row.querySelector('input[type="file"]');
       if(file) file.name = 'receipt_' + idx;
     });
@@ -488,7 +558,7 @@ if ($action === 'new' || $action === 'edit') {
   function calculate(){
     const colTotals = Object.fromEntries(amountNames.map(name=>[name,0]));
     let grand = 0;
-    tbody.querySelectorAll('[data-expense-row]').forEach(row=>{
+    rowList.querySelectorAll('[data-expense-row]').forEach(row=>{
       let rowTotal = 0;
       amountNames.forEach(name=>{
         const input = row.querySelector(`[name="${name}[]"]`);
@@ -501,23 +571,23 @@ if ($action === 'new' || $action === 'edit') {
       if(totalCell) totalCell.textContent = peso.format(rowTotal);
     });
     amountNames.forEach(name=>{
-      const cell = table.querySelector(`[data-total-col="${name}"]`);
+      const cell = form.querySelector(`[data-total-col="${name}"]`);
       if(cell) cell.textContent = peso.format(colTotals[name]);
     });
-    const grandCell = table.querySelector('[data-grand-total]');
+    const grandCell = form.querySelector('[data-grand-total]');
     if(grandCell) grandCell.textContent = peso.format(grand);
   }
   form.addEventListener('input', calculate);
   form.addEventListener('click', function(e){
     const remove = e.target.closest('[data-remove-expense-row]');
     if(remove){
-      const rows = tbody.querySelectorAll('[data-expense-row]');
+      const rows = rowList.querySelectorAll('[data-expense-row]');
       if(rows.length > 1) remove.closest('[data-expense-row]').remove();
       refreshNames(); calculate();
     }
     if(e.target.closest('[data-add-expense-row]')){
       const row = template.content.firstElementChild.cloneNode(true);
-      tbody.appendChild(row);
+      rowList.appendChild(row);
       refreshNames(); calculate();
     }
   });
