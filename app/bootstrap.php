@@ -181,7 +181,7 @@ function render_header(string $title, string $eyebrow = 'Pharmastar CRM'): void 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/app.css?v=20260514-dashboard-modal-font-animations">
+  <link rel="stylesheet" href="assets/app.css?v=20260525-expense-reports">
 </head>
 <body>
 <div class="app-shell">
@@ -195,6 +195,7 @@ function render_header(string $title, string $eyebrow = 'Pharmastar CRM'): void 
       <a class="<?= active_nav('reports.php') ?>" href="reports.php">Reports</a>
       <a class="<?= active_nav('report_form.php') ?>" href="report_form.php">New Report</a>
       <a class="<?= active_nav('tasks.php') ?>" href="tasks.php">Tasks</a>
+      <a class="<?= active_nav('expenses.php') ?>" href="expenses.php">Expenses</a>
       <a class="<?= active_nav('analytics.php') ?>" href="analytics.php">Analytics</a>
       <a class="<?= active_nav('doctors.php') ?>" href="doctors.php">Doctors</a>
       <?php if (is_manager()): ?><a class="<?= active_nav('users.php') ?>" href="users.php">Users</a><?php endif; ?>
@@ -221,7 +222,7 @@ function render_footer(): void { ?>
     </section>
   </main>
 </div>
-<script src="assets/app.js?v=20260514-dashboard-modal-font-animations"></script>
+<script src="assets/app.js?v=20260525-expense-reports"></script>
 </body>
 </html>
 <?php }
