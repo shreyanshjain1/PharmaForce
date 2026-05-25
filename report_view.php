@@ -61,6 +61,34 @@ function report_date($value)
     return $time ? date('M d, Y g:i A', $time) : $value;
 }
 
+function is_image_attachment($path)
+{
+    $path = strtolower(trim((string)$path));
+
+    if ($path === '') {
+        return false;
+    }
+
+    $extension = pathinfo(parse_url($path, PHP_URL_PATH) ?? $path, PATHINFO_EXTENSION);
+
+    return in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'], true);
+}
+
+function attachment_file_name($path)
+{
+    $path = trim((string)$path);
+
+    if ($path === '') {
+        return 'Attachment';
+    }
+
+    $file = basename(parse_url($path, PHP_URL_PATH) ?? $path);
+    return $file !== '' ? $file : 'Attachment';
+}
+
+$hasAttachment = $attachmentPath !== '';
+$attachmentIsImage = is_image_attachment($attachmentPath);
+
 render_header('Report Details');
 ?>
 
@@ -254,15 +282,33 @@ render_header('Report Details');
         white-space: normal;
     }
 
-    .report-signature-box {
+    .report-media-layout {
         display: grid;
-        grid-template-columns: minmax(280px, 420px) 1fr;
+        grid-template-columns: minmax(280px, 1.2fr) minmax(280px, .8fr);
         gap: 1rem;
         align-items: stretch;
     }
 
+    .attachment-preview-card,
+    .signature-preview-card {
+        display: grid;
+        gap: .85rem;
+        padding: 1rem;
+        border: 1px solid rgba(15, 118, 110, 0.12);
+        border-radius: 22px;
+        background: #fbfffd;
+    }
+
+    .attachment-preview-card h4,
+    .signature-preview-card h4 {
+        margin: 0;
+        color: #0f172a;
+        font-size: 1rem;
+    }
+
+    .attachment-frame,
     .signature-preview {
-        min-height: 180px;
+        min-height: 220px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -276,37 +322,72 @@ render_header('Report Details');
         background-size: 22px 22px;
     }
 
+    .attachment-frame img {
+        width: 100%;
+        max-height: 460px;
+        object-fit: contain;
+        border-radius: 16px;
+        display: block;
+        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
+        background: #ffffff;
+    }
+
+    .signature-preview {
+        min-height: 170px;
+    }
+
     .signature-preview img {
         width: 100%;
         max-width: 380px;
-        max-height: 170px;
+        max-height: 160px;
         object-fit: contain;
         display: block;
         filter: contrast(1.08);
     }
 
+    .media-caption {
+        padding: .85rem;
+        border-radius: 18px;
+        background: #ffffff;
+        border: 1px solid rgba(15, 118, 110, 0.1);
+    }
+
+    .media-caption p {
+        margin: .35rem 0 0;
+        color: #64748b;
+        line-height: 1.55;
+    }
+
+    .attachment-empty,
     .signature-empty {
         text-align: center;
         color: #64748b;
         font-weight: 800;
     }
 
-    .signature-caption {
-        padding: 1rem;
+    .attachment-file-box {
+        display: grid;
+        gap: .65rem;
+        width: 100%;
+        max-width: 420px;
+        text-align: center;
+        padding: 1.25rem;
+        border-radius: 18px;
+        background: #ffffff;
         border: 1px solid rgba(15, 118, 110, 0.12);
+    }
+
+    .attachment-file-icon {
+        width: 58px;
+        height: 58px;
+        display: grid;
+        place-items: center;
+        margin: 0 auto;
         border-radius: 20px;
-        background: #fbfffd;
-    }
-
-    .signature-caption h4 {
-        margin: 0 0 .4rem;
-        color: #0f172a;
-    }
-
-    .signature-caption p {
-        margin: 0;
-        color: #64748b;
-        line-height: 1.6;
+        background: rgba(15, 118, 110, 0.1);
+        color: #0f766e;
+        font-size: 1.45rem;
+        font-weight: 900;
     }
 
     .manager-review-card {
@@ -328,6 +409,12 @@ render_header('Report Details');
         align-items: end;
     }
 
+    @media (max-width: 1080px) {
+        .report-media-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+
     @media (max-width: 980px) {
         .report-toolbar,
         .report-document-header {
@@ -340,7 +427,6 @@ render_header('Report Details');
 
         .report-grid-2,
         .report-grid-3,
-        .report-signature-box,
         .manager-review-grid {
             grid-template-columns: 1fr;
         }
@@ -349,7 +435,7 @@ render_header('Report Details');
     @media print {
         @page {
             size: A4;
-            margin: 12mm;
+            margin: 10mm;
         }
 
         body {
@@ -408,53 +494,80 @@ render_header('Report Details');
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
             border-radius: 0 !important;
-            padding: 16px !important;
+            padding: 14px !important;
         }
 
         .report-body {
-            padding: 14px !important;
-            gap: 10px !important;
+            padding: 12px !important;
+            gap: 9px !important;
         }
 
         .report-section {
             break-inside: avoid;
             page-break-inside: avoid;
-            border-radius: 12px !important;
+            border-radius: 10px !important;
         }
 
         .report-section-head {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
-            padding: 10px 12px !important;
+            padding: 9px 11px !important;
         }
 
         .report-section-content {
-            padding: 12px !important;
+            padding: 10px !important;
         }
 
         .report-grid-2,
         .report-grid-3 {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-            gap: 8px !important;
+            gap: 7px !important;
         }
 
         .report-field {
             min-height: auto !important;
-            padding: 9px !important;
+            padding: 8px !important;
             border-radius: 10px !important;
         }
 
-        .report-signature-box {
-            grid-template-columns: 300px 1fr !important;
+        .report-media-layout {
+            grid-template-columns: 1fr !important;
+            gap: 8px !important;
+        }
+
+        .attachment-preview-card,
+        .signature-preview-card {
+            padding: 8px !important;
+            border-radius: 10px !important;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
+        .attachment-frame {
+            min-height: 180px !important;
+            border-radius: 10px !important;
+            padding: 8px !important;
+        }
+
+        .attachment-frame img {
+            max-height: 360px !important;
+            border-radius: 8px !important;
+            box-shadow: none !important;
         }
 
         .signature-preview {
-            min-height: 130px !important;
+            min-height: 115px !important;
             border-radius: 10px !important;
+            padding: 8px !important;
         }
 
         .signature-preview img {
-            max-height: 120px !important;
+            max-height: 105px !important;
+        }
+
+        .media-caption {
+            padding: 7px !important;
+            border-radius: 8px !important;
         }
 
         .btn,
@@ -588,13 +701,6 @@ render_header('Report Details');
                                 <span>Hospital / Clinic</span>
                                 <strong><?= e(report_value($r['hospital_name'])) ?></strong>
                             </div>
-
-                            <?php if ($attachmentPath !== ''): ?>
-                                <div class="report-field full no-print">
-                                    <span>Attachment</span>
-                                    <a class="btn small" target="_blank" href="<?= e($attachmentPath) ?>">Open Attachment</a>
-                                </div>
-                            <?php endif; ?>
                         </div>
                     </div>
                 </section>
@@ -602,36 +708,83 @@ render_header('Report Details');
                 <section class="report-section">
                     <div class="report-section-head">
                         <div>
-                            <span class="eyebrow">Confirmation</span>
-                            <h3>Doctor Signature</h3>
+                            <span class="eyebrow">Evidence & Confirmation</span>
+                            <h3>Attachment and Signature</h3>
                         </div>
                     </div>
 
                     <div class="report-section-content">
-                        <div class="report-signature-box">
-                            <div class="signature-preview">
-                                <?php if ($signaturePath !== ''): ?>
-                                    <img src="<?= e($signaturePath) ?>" alt="Doctor signature for report #<?= (int)$r['id'] ?>">
-                                <?php else: ?>
-                                    <div class="signature-empty">
-                                        No signature captured.
+                        <div class="report-media-layout">
+                            <div class="attachment-preview-card">
+                                <div>
+                                    <h4>Uploaded Attachment</h4>
+                                    <p class="muted">
+                                        <?= $hasAttachment ? e(attachment_file_name($attachmentPath)) : 'No attachment uploaded for this report.' ?>
+                                    </p>
+                                </div>
+
+                                <div class="attachment-frame">
+                                    <?php if ($hasAttachment && $attachmentIsImage): ?>
+                                        <img src="<?= e($attachmentPath) ?>" alt="Uploaded attachment for report #<?= (int)$r['id'] ?>">
+                                    <?php elseif ($hasAttachment): ?>
+                                        <div class="attachment-file-box">
+                                            <div class="attachment-file-icon">FILE</div>
+                                            <strong><?= e(attachment_file_name($attachmentPath)) ?></strong>
+                                            <p class="muted">This attachment is not an image preview. Open it using the button below.</p>
+                                            <a class="btn small ghost no-print" target="_blank" href="<?= e($attachmentPath) ?>">Open Attachment</a>
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="attachment-empty">
+                                            No attachment uploaded.
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+
+                                <?php if ($hasAttachment): ?>
+                                    <div class="media-caption">
+                                        <strong>Attachment Record</strong>
+                                        <p>
+                                            This file was submitted as supporting documentation for the field visit report.
+                                        </p>
+                                        <p class="no-print" style="margin-top:.75rem;">
+                                            <a class="btn small ghost" target="_blank" href="<?= e($attachmentPath) ?>">Open Original Attachment</a>
+                                        </p>
                                     </div>
                                 <?php endif; ?>
                             </div>
 
-                            <div class="signature-caption">
-                                <h4>Signature Confirmation</h4>
-                                <p>
-                                    This signature confirms the field visit report details recorded by
-                                    <?= e(report_value($r['rep'], 'the sales representative')) ?>
-                                    for <?= e(report_value($r['doctor_name'], 'the doctor')) ?>.
-                                </p>
-
-                                <?php if ($signaturePath !== ''): ?>
-                                    <p class="no-print" style="margin-top:.8rem;">
-                                        <a class="btn small ghost" target="_blank" href="<?= e($signaturePath) ?>">Open Signature Image</a>
+                            <div class="signature-preview-card">
+                                <div>
+                                    <h4>Doctor Signature</h4>
+                                    <p class="muted">
+                                        <?= $signaturePath !== '' ? 'Captured signature is shown below.' : 'No signature captured for this report.' ?>
                                     </p>
-                                <?php endif; ?>
+                                </div>
+
+                                <div class="signature-preview">
+                                    <?php if ($signaturePath !== ''): ?>
+                                        <img src="<?= e($signaturePath) ?>" alt="Doctor signature for report #<?= (int)$r['id'] ?>">
+                                    <?php else: ?>
+                                        <div class="signature-empty">
+                                            No signature captured.
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+
+                                <div class="media-caption">
+                                    <strong>Signature Confirmation</strong>
+                                    <p>
+                                        This signature confirms the field visit report details recorded by
+                                        <?= e(report_value($r['rep'], 'the sales representative')) ?>
+                                        for <?= e(report_value($r['doctor_name'], 'the doctor')) ?>.
+                                    </p>
+
+                                    <?php if ($signaturePath !== ''): ?>
+                                        <p class="no-print" style="margin-top:.75rem;">
+                                            <a class="btn small ghost" target="_blank" href="<?= e($signaturePath) ?>">Open Signature Image</a>
+                                        </p>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         </div>
                     </div>
