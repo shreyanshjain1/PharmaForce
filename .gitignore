@@ -1,0 +1,45 @@
+# Runtime uploads and user-generated files
+/uploads/*
+!/uploads/.gitkeep
+!/uploads/signatures/
+!/uploads/signatures/.gitkeep
+/uploads/signatures/*
+!/uploads/signatures/.gitkeep
+
+# Common attachment folders
+/attachments/*
+!/attachments/.gitkeep
+/public/uploads/*
+!/public/uploads/.gitkeep
+/public/attachments/*
+!/public/attachments/.gitkeep
+
+# Local database/config/env files
+.env
+.env.*
+!.env.example
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# Logs/cache/temp
+*.log
+logs/
+cache/
+tmp/
+temp/
+
+# Local backup files
+*.bak
+*.backup
+*.old
+*.zip
+*.rar
+*.7z
+
+# XAMPP/local-only files
+php_errorlog
