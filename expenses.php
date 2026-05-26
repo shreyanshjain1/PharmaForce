@@ -507,8 +507,8 @@ if ($action === 'new' || $action === 'edit') {
         <form class="card filters" method="get">
             <div class="field"><label>Month</label><input type="month" name="month" value="<?= e($month) ?>"></div>
             <div class="field"><label>Status</label><select name="status"><option value="">All Status</option><?php foreach (['pending','approved','needs_changes'] as $s): ?><option value="<?= e($s) ?>" <?= $status===$s?'selected':'' ?>><?= e(expense_status_label($s)) ?></option><?php endforeach; ?></select></div>
-            <div class="field"><label>&nbsp;</label><button class="btn primary">Filter</button></div>
-            <div class="field"><label>&nbsp;</label><a class="btn ghost" href="expenses.php">Reset</a></div>
+            <div class="filter-action"><button class="btn primary">Filter</button></div>
+            <div class="filter-action"><a class="btn ghost" href="expenses.php">Reset</a></div>
         </form>
 
         <div class="card">
