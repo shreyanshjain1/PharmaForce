@@ -196,6 +196,7 @@ function render_header(string $title, string $eyebrow = 'Pharmastar CRM'): void 
       <a class="<?= active_nav('report_form.php') ?>" href="report_form.php">New Report</a>
       <a class="<?= active_nav('tasks.php') ?>" href="tasks.php">Tasks</a>
       <a class="<?= active_nav('expenses.php') ?>" href="expenses.php">Expenses</a>
+      <?php if (is_manager()): ?><a class="<?= active_nav('approvals.php') ?>" href="approvals.php">Approvals</a><?php endif; ?>
       <a class="<?= active_nav('analytics.php') ?>" href="analytics.php">Analytics</a>
       <a class="<?= active_nav('doctors.php') ?>" href="doctors.php">Doctors</a>
       <?php if (is_manager()): ?><a class="<?= active_nav('users.php') ?>" href="users.php">Users</a><?php endif; ?>
