@@ -192,6 +192,7 @@ function render_header(string $title, string $eyebrow = 'Pharmastar CRM'): void 
     </div>
     <nav class="nav">
       <a class="<?= active_nav('index.php') ?>" href="index.php">Dashboard</a>
+      <a class="<?= active_nav('my_work.php') ?>" href="my_work.php">My Work</a>
       <a class="<?= active_nav('reports.php') ?>" href="reports.php">Reports</a>
       <a class="<?= active_nav('report_form.php') ?>" href="report_form.php">New Report</a>
       <a class="<?= active_nav('tasks.php') ?>" href="tasks.php">Tasks</a>
