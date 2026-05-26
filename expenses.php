@@ -27,10 +27,19 @@ function expense_status_label(string $status): string
 
 function expense_scope_clause(PDO $pdo, string $alias = 'er'): array
 {
-    $ids = visible_user_ids($pdo);
-    if (!$ids) return ['1=0', []];
+    $u = current_user();
+    if (!$u) return ['1=0', []];
+
     $prefix = $alias ? $alias . '.' : '';
-    return [$prefix . 'user_id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')', $ids];
+
+    // Expense visibility rule:
+    // Managers and district managers must be able to see every employee expense report.
+    // This does not rely on district_manager_id because some production DB dumps do not have that column.
+    if (in_array($u['role'] ?? '', ['manager', 'district_manager'], true)) {
+        return ['1=1', []];
+    }
+
+    return [$prefix . 'user_id = ?', [(int)$u['id']]];
 }
 
 function clean_amount($value): float
