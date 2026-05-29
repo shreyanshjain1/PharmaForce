@@ -67,6 +67,31 @@ function save_receipt_file(string $field): ?string
     return save_uploaded_file($field, 'uploads/expenses');
 }
 
+function expense_receipt_name(?string $path): string
+{
+    $path = trim((string)$path);
+    if ($path === '') return 'Receipt';
+    $file = basename(parse_url($path, PHP_URL_PATH) ?: $path);
+    return $file !== '' ? $file : 'Receipt';
+}
+
+function expense_receipt_ext(?string $path): string
+{
+    $path = strtolower(trim((string)$path));
+    return pathinfo(parse_url($path, PHP_URL_PATH) ?: $path, PATHINFO_EXTENSION);
+}
+
+function expense_receipt_is_image(?string $path): bool
+{
+    return in_array(expense_receipt_ext($path), ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'], true);
+}
+
+function expense_receipt_is_pdf(?string $path): bool
+{
+    return expense_receipt_ext($path) === 'pdf';
+}
+
+
 $ready = expense_tables_ready($pdo);
 if (!$ready) {
     render_header('Expense Reports');
@@ -392,6 +417,10 @@ if ($action === 'new' || $action === 'edit') {
     $items = $itemStmt->fetchAll();
     $categoryTotals = ['gasoline'=>0,'toll'=>0,'parking'=>0,'transportation'=>0,'representation'=>0,'accommodation'=>0,'others'=>0];
     foreach ($items as $item) foreach ($categoryTotals as $key => $_) $categoryTotals[$key] += (float)$item[$key];
+
+    $receiptItems = array_values(array_filter($items, static fn($item) => trim((string)($item['receipt_path'] ?? '')) !== ''));
+    $imageReceiptCount = count(array_filter($receiptItems, static fn($item) => expense_receipt_is_image($item['receipt_path'] ?? '')));
+    $pdfReceiptCount = count(array_filter($receiptItems, static fn($item) => expense_receipt_is_pdf($item['receipt_path'] ?? '')));
     ?>
     <div class="expense-shell">
         <div class="expense-toolbar no-print">
@@ -405,6 +434,198 @@ if ($action === 'new' || $action === 'edit') {
                 <button class="btn primary" onclick="window.print()">Export to PDF / Print</button>
             </div>
         </div>
+
+
+        <style>
+            .expense-receipt-overview {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 12px;
+            }
+
+            .expense-receipt-stat {
+                padding: 16px;
+                border: 1px solid rgba(15, 118, 110, .13);
+                border-radius: 24px;
+                background:
+                    radial-gradient(circle at right top, rgba(20, 184, 166, .08), transparent 30%),
+                    linear-gradient(145deg, #ffffff, #fbfffe);
+                box-shadow: 0 10px 24px rgba(15, 118, 110, .045);
+            }
+
+            .expense-receipt-stat span {
+                display: block;
+                color: #607872;
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: .09em;
+                font-weight: 950;
+            }
+
+            .expense-receipt-stat strong {
+                display: block;
+                margin-top: 7px;
+                color: #061f1c;
+                font-size: 24px;
+                letter-spacing: -.04em;
+            }
+
+            .expense-receipt-gallery {
+                display: grid;
+                gap: 14px;
+            }
+
+            .expense-gallery-grid {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 14px;
+            }
+
+            .expense-receipt-card {
+                overflow: hidden;
+                border: 1px solid rgba(15, 118, 110, .14);
+                border-radius: 28px;
+                background: linear-gradient(145deg, #ffffff, #fbfffe);
+                box-shadow: 0 14px 34px rgba(15, 118, 110, .06);
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+
+            .expense-receipt-frame {
+                min-height: 220px;
+                display: grid;
+                place-items: center;
+                padding: 14px;
+                border-bottom: 1px solid rgba(15, 118, 110, .10);
+                background:
+                    linear-gradient(45deg, rgba(15, 118, 110, .035) 25%, transparent 25%),
+                    linear-gradient(-45deg, rgba(15, 118, 110, .035) 25%, transparent 25%),
+                    #ffffff;
+                background-size: 22px 22px;
+            }
+
+            .expense-receipt-frame img {
+                width: 100%;
+                max-height: 260px;
+                object-fit: contain;
+                border-radius: 18px;
+                background: #ffffff;
+                box-shadow: 0 12px 28px rgba(15, 23, 42, .10);
+            }
+
+            .expense-file-preview {
+                width: 100%;
+                min-height: 180px;
+                display: grid;
+                place-items: center;
+                gap: 10px;
+                text-align: center;
+                padding: 20px;
+                border-radius: 20px;
+                background: #f8fffd;
+                border: 1px dashed rgba(15, 118, 110, .25);
+            }
+
+            .expense-file-preview strong {
+                display: block;
+                color: #0f766e;
+                font-size: 18px;
+            }
+
+            .expense-file-preview span {
+                color: #607872;
+                font-weight: 750;
+                overflow-wrap: anywhere;
+            }
+
+            .expense-receipt-info {
+                display: grid;
+                gap: 8px;
+                padding: 14px;
+            }
+
+            .expense-receipt-info strong {
+                color: #082f2b;
+                font-size: 15px;
+                overflow-wrap: anywhere;
+            }
+
+            .expense-receipt-info p {
+                margin: 0;
+                color: #607872;
+                font-size: 13px;
+                line-height: 1.45;
+                font-weight: 750;
+            }
+
+            .expense-receipt-actions {
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
+                margin-top: 4px;
+            }
+
+            .expense-receipt-empty {
+                padding: 22px;
+                border: 1px dashed rgba(15, 118, 110, .24);
+                border-radius: 26px;
+                background: linear-gradient(135deg, #ffffff, #f8fffd);
+                text-align: center;
+                color: #607872;
+                font-weight: 850;
+            }
+
+            @media(max-width: 1100px) {
+                .expense-gallery-grid,
+                .expense-receipt-overview {
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                }
+            }
+
+            @media(max-width: 680px) {
+                .expense-gallery-grid,
+                .expense-receipt-overview {
+                    grid-template-columns: 1fr;
+                }
+            }
+
+            @media print {
+                .expense-receipt-overview {
+                    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+                    gap: 8px !important;
+                }
+
+                .expense-gallery-grid {
+                    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                    gap: 8px !important;
+                }
+
+                .expense-receipt-card,
+                .expense-receipt-stat {
+                    box-shadow: none !important;
+                    border-radius: 10px !important;
+                }
+
+                .expense-receipt-frame {
+                    min-height: 150px !important;
+                    padding: 8px !important;
+                }
+
+                .expense-receipt-frame img {
+                    max-height: 190px !important;
+                    box-shadow: none !important;
+                    border-radius: 8px !important;
+                }
+
+                .expense-receipt-info {
+                    padding: 8px !important;
+                }
+
+                .expense-receipt-actions {
+                    display: none !important;
+                }
+            }
+        </style>
 
         <div class="expense-print-area">
             <article class="expense-report-sheet">
@@ -426,6 +647,66 @@ if ($action === 'new' || $action === 'edit') {
                         <div class="detail"><span>Report Month</span><strong><?= e(date('F Y', strtotime($report['report_month']))) ?></strong></div>
                         <div class="detail"><span>Status</span><strong><?= e(expense_status_label($report['status'])) ?></strong></div>
                     </div>
+
+                    <section class="expense-receipt-gallery">
+                        <div class="section-title">
+                            <div>
+                                <span class="eyebrow">Receipt Gallery</span>
+                                <h2>Attached receipts</h2>
+                                <p class="muted">Uploaded receipts are shown here for faster manager review and cleaner PDF export.</p>
+                            </div>
+                        </div>
+
+                        <div class="expense-receipt-overview">
+                            <div class="expense-receipt-stat"><span>Total Receipts</span><strong><?= number_format(count($receiptItems)) ?></strong></div>
+                            <div class="expense-receipt-stat"><span>Image Receipts</span><strong><?= number_format($imageReceiptCount) ?></strong></div>
+                            <div class="expense-receipt-stat"><span>PDF / File Receipts</span><strong><?= number_format($pdfReceiptCount) ?></strong></div>
+                        </div>
+
+                        <?php if ($receiptItems): ?>
+                            <div class="expense-gallery-grid">
+                                <?php foreach ($receiptItems as $idx => $item): ?>
+                                    <?php
+                                        $receiptPath = trim((string)$item['receipt_path']);
+                                        $receiptName = expense_receipt_name($receiptPath);
+                                        $receiptDate = !empty($item['expense_date']) ? date('M d, Y', strtotime($item['expense_date'])) : 'No date';
+                                    ?>
+                                    <article class="expense-receipt-card">
+                                        <div class="expense-receipt-frame">
+                                            <?php if (expense_receipt_is_image($receiptPath)): ?>
+                                                <a href="<?= e($receiptPath) ?>" target="_blank" title="Open receipt">
+                                                    <img src="<?= e($receiptPath) ?>" alt="Receipt for <?= e($item['particulars'] ?: 'expense item') ?>">
+                                                </a>
+                                            <?php else: ?>
+                                                <div class="expense-file-preview">
+                                                    <strong><?= expense_receipt_is_pdf($receiptPath) ? 'PDF Receipt' : 'Receipt File' ?></strong>
+                                                    <span><?= e($receiptName) ?></span>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+
+                                        <div class="expense-receipt-info">
+                                            <strong>Receipt <?= (int)($idx + 1) ?> &middot; <?= e($receiptDate) ?></strong>
+                                            <p><?= e($item['particulars'] ?: 'Expense item') ?></p>
+                                            <p>Total: <strong><?= money_fmt($item['total']) ?></strong></p>
+                                            <?php if (!empty($item['remarks'])): ?>
+                                                <p><?= e($item['remarks']) ?></p>
+                                            <?php endif; ?>
+                                            <div class="expense-receipt-actions no-print">
+                                                <a class="btn small ghost" target="_blank" href="<?= e($receiptPath) ?>">Open Receipt</a>
+                                                <a class="btn small" download href="<?= e($receiptPath) ?>">Download</a>
+                                            </div>
+                                        </div>
+                                    </article>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php else: ?>
+                            <div class="expense-receipt-empty">
+                                No receipt files were attached to this expense report.
+                            </div>
+                        <?php endif; ?>
+                    </section>
+
                     <div class="expense-table-wrap">
                         <table class="expense-print-table">
                             <thead>
