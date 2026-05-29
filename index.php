@@ -407,6 +407,130 @@ render_header('Dashboard');
     width: 100%;
   }
 }
+
+
+/* Scrollable dashboard calendar task modal */
+.modal-backdrop[data-task-modal] {
+  align-items: flex-start;
+  justify-content: center;
+  padding: 26px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.modal-backdrop[data-task-modal] .modal-card {
+  width: min(820px, calc(100vw - 42px));
+  max-height: calc(100dvh - 52px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
+.modal-backdrop[data-task-modal].task-modal-wide .modal-card {
+  width: min(980px, calc(100vw - 42px));
+}
+
+.task-modal-head {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  flex: 0 0 auto;
+  padding: 26px 28px 16px;
+  border-bottom: 1px solid rgba(15, 118, 110, .10);
+  background:
+    radial-gradient(circle at right top, rgba(20,184,166,.08), transparent 30%),
+    linear-gradient(135deg, rgba(255,255,255,.98), rgba(248,255,253,.98));
+}
+
+.task-modal-head .modal-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+}
+
+.task-modal-head h2 {
+  margin-right: 54px;
+}
+
+.task-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 18px 28px 28px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.task-modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.task-modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.task-modal-body::-webkit-scrollbar-thumb {
+  background: rgba(15,118,110,.25);
+  border-radius: 999px;
+}
+
+.task-modal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(15,118,110,.42);
+}
+
+.task-modal-body .modal-actions {
+  position: sticky;
+  bottom: -28px;
+  z-index: 3;
+  margin: 18px -28px -28px;
+  padding: 16px 28px;
+  background: rgba(255, 255, 255, .88);
+  border-top: 1px solid rgba(15, 118, 110, .10);
+  backdrop-filter: blur(14px);
+}
+
+@media (max-width: 760px) {
+  .modal-backdrop[data-task-modal] {
+    padding: 10px;
+  }
+
+  .modal-backdrop[data-task-modal] .modal-card,
+  .modal-backdrop[data-task-modal].task-modal-wide .modal-card {
+    width: 100%;
+    max-height: calc(100dvh - 20px);
+    border-radius: 22px;
+  }
+
+  .task-modal-head {
+    padding: 20px 18px 14px;
+  }
+
+  .task-modal-head .modal-close {
+    top: 14px;
+    right: 14px;
+  }
+
+  .task-modal-head h2 {
+    margin-right: 46px;
+  }
+
+  .task-modal-body {
+    padding: 16px 18px 22px;
+  }
+
+  .task-modal-body .modal-actions {
+    margin: 18px -18px -22px;
+    padding: 14px 18px;
+    display: grid;
+  }
+
+  .task-modal-body .modal-actions .btn {
+    width: 100%;
+  }
+}
+
 </style>
 
 
@@ -487,15 +611,20 @@ render_header('Dashboard');
 
 <div class="modal-backdrop" data-task-modal hidden>
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
-    <button class="modal-close" type="button" data-close-task-modal aria-label="Close task preview">×</button>
-    <span class="eyebrow">Calendar Task</span>
-    <h2 id="taskModalTitle" data-task-modal-title>Task Details</h2>
-    <div class="modal-meta" data-task-modal-meta></div>
-    <div class="modal-details" data-task-modal-details></div>
-    <div data-task-modal-brief></div>
-    <div class="modal-actions">
-      <a class="btn ghost" data-task-modal-view href="tasks.php">Open Task Center</a>
-      <a class="btn primary" data-task-modal-report href="report_form.php">Generate Report</a>
+    <div class="task-modal-head">
+      <button class="modal-close" type="button" data-close-task-modal aria-label="Close task preview">×</button>
+      <span class="eyebrow">Calendar Task</span>
+      <h2 id="taskModalTitle" data-task-modal-title>Task Details</h2>
+      <div class="modal-meta" data-task-modal-meta></div>
+    </div>
+
+    <div class="task-modal-body">
+      <div class="modal-details" data-task-modal-details></div>
+      <div data-task-modal-brief></div>
+      <div class="modal-actions">
+        <a class="btn ghost" data-task-modal-view href="tasks.php">Open Task Center</a>
+        <a class="btn primary" data-task-modal-report href="report_form.php">Generate Report</a>
+      </div>
     </div>
   </div>
 </div>
