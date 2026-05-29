@@ -181,32 +181,42 @@ function render_header(string $title, string $eyebrow = 'Pharmastar CRM'): void 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/app.css?v=20260525-expense-reports">
+  <script>
+    try {
+      if (localStorage.getItem('pharmaforce_sidebar_collapsed') === '1') {
+        document.documentElement.classList.add('sidebar-collapsed');
+      }
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="assets/app.css?v=20260526-collapsible-sidebar">
 </head>
 <body>
 <div class="app-shell">
   <aside class="sidebar" id="sidebar">
     <div class="brand">
       <div class="brand-mark">PS</div>
-      <div><strong>Pharmastar</strong><span>Sales Reports</span></div>
+      <div class="brand-copy"><strong>Pharmastar</strong><span>Sales Reports</span></div>
+      <button type="button" class="sidebar-collapse-btn" data-collapse-sidebar aria-label="Collapse sidebar" title="Collapse sidebar">
+        <span class="collapse-icon">‹</span>
+      </button>
     </div>
     <nav class="nav">
-      <a class="<?= active_nav('index.php') ?>" href="index.php">Dashboard</a>
-      <a class="<?= active_nav('my_work.php') ?>" href="my_work.php">My Work</a>
-      <a class="<?= active_nav('reports.php') ?>" href="reports.php">Reports</a>
-      <a class="<?= active_nav('report_form.php') ?>" href="report_form.php">New Report</a>
-      <a class="<?= active_nav('tasks.php') ?>" href="tasks.php">Tasks</a>
-      <a class="<?= active_nav('expenses.php') ?>" href="expenses.php">Expenses</a>
-      <?php if (is_manager()): ?><a class="<?= active_nav('approvals.php') ?>" href="approvals.php">Approvals</a><?php endif; ?>
-      <a class="<?= active_nav('analytics.php') ?>" href="analytics.php">Analytics</a>
-      <a class="<?= active_nav('doctors.php') ?>" href="doctors.php">Doctors</a>
-      <?php if (is_manager()): ?><a class="<?= active_nav('users.php') ?>" href="users.php">Users</a><?php endif; ?>
-      <a class="<?= active_nav('profile.php') ?>" href="profile.php">Profile</a>
+      <a class="<?= active_nav('index.php') ?>" href="index.php"><span class="nav-icon">D</span><span class="nav-label">Dashboard</span></a>
+      <a class="<?= active_nav('my_work.php') ?>" href="my_work.php"><span class="nav-icon">W</span><span class="nav-label">My Work</span></a>
+      <a class="<?= active_nav('reports.php') ?>" href="reports.php"><span class="nav-icon">R</span><span class="nav-label">Reports</span></a>
+      <a class="<?= active_nav('report_form.php') ?>" href="report_form.php"><span class="nav-icon">N</span><span class="nav-label">New Report</span></a>
+      <a class="<?= active_nav('tasks.php') ?>" href="tasks.php"><span class="nav-icon">T</span><span class="nav-label">Tasks</span></a>
+      <a class="<?= active_nav('expenses.php') ?>" href="expenses.php"><span class="nav-icon">E</span><span class="nav-label">Expenses</span></a>
+      <?php if (is_manager()): ?><a class="<?= active_nav('approvals.php') ?>" href="approvals.php"><span class="nav-icon">A</span><span class="nav-label">Approvals</span></a><?php endif; ?>
+      <a class="<?= active_nav('analytics.php') ?>" href="analytics.php"><span class="nav-icon">K</span><span class="nav-label">Analytics</span></a>
+      <a class="<?= active_nav('doctors.php') ?>" href="doctors.php"><span class="nav-icon">Dr</span><span class="nav-label">Doctors</span></a>
+      <?php if (is_manager()): ?><a class="<?= active_nav('users.php') ?>" href="users.php"><span class="nav-icon">U</span><span class="nav-label">Users</span></a><?php endif; ?>
+      <a class="<?= active_nav('profile.php') ?>" href="profile.php"><span class="nav-icon">P</span><span class="nav-label">Profile</span></a>
     </nav>
     <div class="sidebar-user">
       <div class="avatar"><?= e(strtoupper(substr($u['name'] ?? 'U', 0, 1))) ?></div>
-      <div><strong><?= e($u['name'] ?? '') ?></strong><span><?= e(role_label($u['role'] ?? 'employee')) ?></span></div>
-      <a href="logout.php" class="logout">Logout</a>
+      <div class="sidebar-user-copy"><strong><?= e($u['name'] ?? '') ?></strong><span><?= e(role_label($u['role'] ?? 'employee')) ?></span></div>
+      <a href="logout.php" class="logout"><span class="logout-label">Logout</span><span class="logout-icon">↪</span></a>
     </div>
   </aside>
   <main class="main">
@@ -224,7 +234,47 @@ function render_footer(): void { ?>
     </section>
   </main>
 </div>
-<script src="assets/app.js?v=20260525-expense-reports"></script>
+<script>
+(function () {
+  const root = document.documentElement;
+  const toggle = document.querySelector('[data-collapse-sidebar]');
+  const sidebar = document.getElementById('sidebar');
+
+  function applyState(collapsed) {
+    root.classList.toggle('sidebar-collapsed', collapsed);
+    if (toggle) {
+      toggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+      toggle.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+    }
+  }
+
+  try {
+    applyState(localStorage.getItem('pharmaforce_sidebar_collapsed') === '1');
+  } catch (e) {
+    applyState(false);
+  }
+
+  if (toggle) {
+    toggle.addEventListener('click', function () {
+      const collapsed = !root.classList.contains('sidebar-collapsed');
+      applyState(collapsed);
+      try {
+        localStorage.setItem('pharmaforce_sidebar_collapsed', collapsed ? '1' : '0');
+      } catch (e) {}
+    });
+  }
+
+  document.addEventListener('click', function (event) {
+    if (window.innerWidth > 1180) return;
+    const mobileToggle = event.target.closest('[data-toggle-sidebar]');
+    const clickedInsideSidebar = event.target.closest('#sidebar');
+    if (!mobileToggle && !clickedInsideSidebar && sidebar) {
+      sidebar.classList.remove('open');
+    }
+  });
+})();
+</script>
+<script src="assets/app.js?v=20260526-collapsible-sidebar"></script>
 </body>
 </html>
 <?php }
