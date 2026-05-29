@@ -121,6 +121,7 @@ const taskModal = document.querySelector('[data-task-modal]');
 const taskModalTitle = document.querySelector('[data-task-modal-title]');
 const taskModalMeta = document.querySelector('[data-task-modal-meta]');
 const taskModalDetails = document.querySelector('[data-task-modal-details]');
+const taskModalBrief = document.querySelector('[data-task-modal-brief]');
 const taskModalReport = document.querySelector('[data-task-modal-report]');
 const taskModalView = document.querySelector('[data-task-modal-view]');
 
@@ -129,19 +130,114 @@ function safeText(value, fallback = 'Not provided') {
   return text || fallback;
 }
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function renderDoctorBrief(data) {
+  const brief = data.doctorBrief || {};
+  const doctorName = safeText(data.doctor, 'this doctor');
+
+  if (!brief.hasHistory) {
+    return `
+      <div class="doctor-brief-card is-first-time">
+        <div class="doctor-brief-head">
+          <div>
+            <span class="eyebrow">Pre-Visit Brief</span>
+            <h3>First time meeting ${escapeHtml(doctorName)}</h3>
+            <p>No previous report history was found for this doctor in the current visible records. This visit can become the first documented interaction.</p>
+          </div>
+          <div class="doctor-brief-count"><strong>0</strong><small>Past Visits</small></div>
+        </div>
+      </div>
+    `;
+  }
+
+  const products = Array.isArray(brief.products) ? brief.products.filter(Boolean) : [];
+  const recentVisits = Array.isArray(brief.recentVisits) ? brief.recentVisits.filter(Boolean) : [];
+  const summary = safeText(brief.lastSummary || brief.lastRemarks || brief.managerComment, 'No detailed summary was saved in the last visit.');
+
+  return `
+    <div class="doctor-brief-card">
+      <div class="doctor-brief-head">
+        <div>
+          <span class="eyebrow">Pre-Visit Brief</span>
+          <h3>Previous meeting context</h3>
+          <p>This doctor has existing visit history. Review the last interaction before generating the next report.</p>
+        </div>
+        <div class="doctor-brief-count"><strong>${escapeHtml(brief.totalVisits || recentVisits.length || 1)}</strong><small>Past Visits</small></div>
+      </div>
+
+      <div class="doctor-brief-grid">
+        <div class="doctor-brief-mini">
+          <span>Last Visit</span>
+          <strong>${escapeHtml(safeText(brief.lastVisitDate))}</strong>
+        </div>
+        <div class="doctor-brief-mini">
+          <span>Visited By</span>
+          <strong>${escapeHtml(safeText(brief.lastVisitedBy))}</strong>
+        </div>
+        <div class="doctor-brief-mini">
+          <span>Last Status</span>
+          <strong>${escapeHtml(safeText(brief.lastStatus))}</strong>
+        </div>
+      </div>
+
+      ${products.length ? `
+        <div class="doctor-brief-products">
+          <span>Products / Purpose Discussed</span>
+          <div class="doctor-brief-pill-row">
+            ${products.slice(0, 6).map((product) => `<span class="doctor-brief-pill">${escapeHtml(product)}</span>`).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      <div class="doctor-brief-summary">
+        <strong>Last visit summary:</strong>
+        ${escapeHtml(summary)}
+      </div>
+
+      ${recentVisits.length ? `
+        <div class="doctor-brief-visits">
+          <span>Recent Visit Notes</span>
+          ${recentVisits.slice(0, 4).map((visit) => `
+            <a class="doctor-brief-visit" href="${escapeHtml(visit.url || '#')}">
+              <strong>${escapeHtml(safeText(visit.date))}</strong>
+              <div>
+                <strong>${escapeHtml(safeText(visit.product || visit.status, 'Visit note'))}</strong>
+                <p>${escapeHtml(safeText(visit.summary, 'No notes saved.'))}</p>
+              </div>
+              <span class="badge">${escapeHtml(safeText(visit.rep))}</span>
+            </a>
+          `).join('')}
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
 function closeTaskModal() {
   if (!taskModal) return;
   taskModal.hidden = true;
+  taskModal.classList.remove('task-modal-wide');
   document.body.classList.remove('modal-open');
 }
 
 function openTaskModal(data) {
   if (!taskModal || !taskModalTitle || !taskModalMeta || !taskModalDetails) return;
+  const hasHistory = Boolean(data.doctorBrief && data.doctorBrief.hasHistory);
+
+  taskModal.classList.toggle('task-modal-wide', hasHistory);
   taskModalTitle.textContent = safeText(data.title, 'Scheduled task');
   taskModalMeta.innerHTML = `
-    <span>${safeText(data.start)}</span>
-    ${data.end ? `<span>${safeText(data.end)}</span>` : ''}
-    ${data.rep ? `<span>${safeText(data.rep)}</span>` : ''}
+    <span>${escapeHtml(safeText(data.start))}</span>
+    ${data.end ? `<span>${escapeHtml(safeText(data.end))}</span>` : ''}
+    ${data.rep ? `<span>${escapeHtml(safeText(data.rep))}</span>` : ''}
   `;
 
   const rows = [
@@ -149,6 +245,8 @@ function openTaskModal(data) {
     ['Specialty', data.speciality],
     ['City / Area', data.city],
     ['Hospital / Clinic', data.hospital],
+    ['Email', data.doctorEmail],
+    ['Contact', data.doctorContact],
     ['Purpose', data.purpose],
     ['Medicine / Product', data.medicine],
     ['Notes', data.notes],
@@ -156,9 +254,10 @@ function openTaskModal(data) {
 
   taskModalDetails.innerHTML = rows
     .filter(([, value]) => String(value || '').trim() !== '')
-    .map(([label, value]) => `<div class="modal-detail"><span>${label}</span><strong>${safeText(value)}</strong></div>`)
+    .map(([label, value]) => `<div class="modal-detail"><span>${escapeHtml(label)}</span><strong>${escapeHtml(safeText(value))}</strong></div>`)
     .join('') || '<div class="empty">No extra task details saved yet.</div>';
 
+  if (taskModalBrief) taskModalBrief.innerHTML = renderDoctorBrief(data);
   if (taskModalReport) taskModalReport.href = data.reportUrl || 'report_form.php';
   if (taskModalView) taskModalView.href = data.taskUrl || 'tasks.php';
   taskModal.hidden = false;
