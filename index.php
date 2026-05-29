@@ -2,6 +2,141 @@
 require __DIR__ . '/app/bootstrap.php';
 require_login();
 
+
+function dashboard_normalize_brief_text(?string $value): string {
+    $value = trim((string)$value);
+    $value = preg_replace('/\s+/', ' ', $value);
+    return $value ?? '';
+}
+
+function dashboard_visit_brief_for_task(PDO $pdo, array $task, array $scopeParams): array {
+    static $cache = [];
+
+    $doctorId = (int)($task['doctor_id'] ?? 0);
+    $doctorName = trim((string)($task['dr_name'] ?? ''));
+    if ($doctorName === '') {
+        $doctorName = trim((string)preg_replace('/^visit:\s*/i', '', (string)($task['title'] ?? '')));
+    }
+    $doctorEmail = trim((string)($task['email'] ?? ''));
+    $hospital = trim((string)($task['hospital_name'] ?? ($task['hospital_address'] ?? '')));
+
+    $cacheKey = implode('|', [$doctorId, strtolower($doctorName), strtolower($doctorEmail), strtolower($hospital)]);
+    if (isset($cache[$cacheKey])) return $cache[$cacheKey];
+
+    $brief = [
+        'hasHistory' => false,
+        'firstTime' => true,
+        'totalVisits' => 0,
+        'lastVisitDate' => '',
+        'lastVisitedBy' => '',
+        'lastStatus' => '',
+        'products' => [],
+        'lastSummary' => '',
+        'lastRemarks' => '',
+        'managerComment' => '',
+        'recentVisits' => [],
+    ];
+
+    if ($doctorId <= 0 && $doctorName === '' && $doctorEmail === '' && $hospital === '') {
+        return $cache[$cacheKey] = $brief;
+    }
+
+    [$reportScopeSql, $reportScopeParams] = scope_clause($pdo, 'r');
+    $conditions = [];
+    $params = [];
+
+    if ($doctorId > 0 && column_exists($pdo, 'reports', 'doctor_id')) {
+        $conditions[] = 'r.doctor_id = ?';
+        $params[] = $doctorId;
+    }
+
+    if ($doctorEmail !== '' && column_exists($pdo, 'reports', 'doctor_email')) {
+        $conditions[] = 'LOWER(r.doctor_email) = LOWER(?)';
+        $params[] = $doctorEmail;
+    }
+
+    if ($doctorName !== '' && column_exists($pdo, 'reports', 'doctor_name')) {
+        if ($hospital !== '' && column_exists($pdo, 'reports', 'hospital_name')) {
+            $conditions[] = '(LOWER(r.doctor_name) = LOWER(?) AND LOWER(r.hospital_name) LIKE LOWER(?))';
+            $params[] = $doctorName;
+            $params[] = '%' . $hospital . '%';
+        }
+
+        $conditions[] = 'LOWER(r.doctor_name) = LOWER(?)';
+        $params[] = $doctorName;
+    }
+
+    if (!$conditions) {
+        return $cache[$cacheKey] = $brief;
+    }
+
+    $where = '(' . implode(' OR ', $conditions) . ')';
+    $sql = "
+        SELECT r.id, r.doctor_name, r.hospital_name, r.visit_datetime, r.purpose, r.medicine_name,
+               r.summary, r.remarks, r.manager_comment, r.status, u.name AS rep_name
+        FROM reports r
+        JOIN users u ON u.id = r.user_id
+        WHERE $reportScopeSql AND $where
+        ORDER BY COALESCE(r.visit_datetime, r.created_at) DESC, r.id DESC
+        LIMIT 8
+    ";
+
+    try {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute(array_merge($reportScopeParams, $params));
+        $rows = $stmt->fetchAll();
+    } catch (Throwable $e) {
+        $rows = [];
+    }
+
+    if (!$rows) {
+        return $cache[$cacheKey] = $brief;
+    }
+
+    $products = [];
+    $recent = [];
+
+    foreach ($rows as $row) {
+        $medicine = dashboard_normalize_brief_text($row['medicine_name'] ?? '');
+        $purpose = dashboard_normalize_brief_text($row['purpose'] ?? '');
+
+        foreach ([$medicine, $purpose] as $item) {
+            if ($item !== '' && !in_array($item, $products, true)) {
+                $products[] = $item;
+            }
+        }
+
+        $summary = dashboard_normalize_brief_text($row['summary'] ?? '');
+        $remarks = dashboard_normalize_brief_text($row['remarks'] ?? '');
+
+        $recent[] = [
+            'id' => (int)$row['id'],
+            'date' => !empty($row['visit_datetime']) ? date('M d, Y', strtotime((string)$row['visit_datetime'])) : '',
+            'rep' => (string)($row['rep_name'] ?? ''),
+            'status' => status_label((string)($row['status'] ?? 'pending')),
+            'product' => $medicine,
+            'summary' => $summary !== '' ? $summary : $remarks,
+            'url' => 'report_view.php?id=' . (int)$row['id'],
+        ];
+    }
+
+    $last = $rows[0];
+
+    $brief['hasHistory'] = true;
+    $brief['firstTime'] = false;
+    $brief['totalVisits'] = count($rows);
+    $brief['lastVisitDate'] = !empty($last['visit_datetime']) ? date('M d, Y g:i A', strtotime((string)$last['visit_datetime'])) : '';
+    $brief['lastVisitedBy'] = (string)($last['rep_name'] ?? '');
+    $brief['lastStatus'] = status_label((string)($last['status'] ?? 'pending'));
+    $brief['products'] = array_slice($products, 0, 6);
+    $brief['lastSummary'] = dashboard_normalize_brief_text($last['summary'] ?? '');
+    $brief['lastRemarks'] = dashboard_normalize_brief_text($last['remarks'] ?? '');
+    $brief['managerComment'] = dashboard_normalize_brief_text($last['manager_comment'] ?? '');
+    $brief['recentVisits'] = array_slice($recent, 0, 4);
+
+    return $cache[$cacheKey] = $brief;
+}
+
 [$scopeSql, $scopeParams] = scope_clause($pdo, 'r');
 $month = $_GET['month'] ?? date('Y-m');
 if (!preg_match('/^\d{4}-\d{2}$/', $month)) $month = date('Y-m');
@@ -30,8 +165,21 @@ $selectEnd = $eventEndColumn ? "e.`$eventEndColumn` AS task_end" : "NULL AS task
 $selectDescription = $eventDescriptionColumn ? "e.`$eventDescriptionColumn` AS task_notes" : "'' AS task_notes";
 $joinDoctor = column_exists($pdo, 'events', 'doctor_id') && table_columns($pdo, 'doctors_masterlist');
 
+$doctorSelect = ", NULL AS dr_name, NULL AS speciality, NULL AS hospital_address, NULL AS place, NULL AS doctor_email, NULL AS doctor_contact";
+if ($joinDoctor) {
+    $doctorSelectParts = [
+        column_exists($pdo, 'doctors_masterlist', 'dr_name') ? 'd.dr_name AS dr_name' : 'NULL AS dr_name',
+        column_exists($pdo, 'doctors_masterlist', 'speciality') ? 'd.speciality AS speciality' : 'NULL AS speciality',
+        column_exists($pdo, 'doctors_masterlist', 'hospital_address') ? 'd.hospital_address AS hospital_address' : 'NULL AS hospital_address',
+        column_exists($pdo, 'doctors_masterlist', 'place') ? 'd.place AS place' : 'NULL AS place',
+        column_exists($pdo, 'doctors_masterlist', 'email') ? 'd.email AS doctor_email' : 'NULL AS doctor_email',
+        column_exists($pdo, 'doctors_masterlist', 'contact_no') ? 'd.contact_no AS doctor_contact' : 'NULL AS doctor_contact',
+    ];
+    $doctorSelect = ', ' . implode(', ', $doctorSelectParts);
+}
+
 $sql = "SELECT e.*, e.`$eventStartColumn` AS task_start, $selectEnd, $selectDescription, u.name AS rep_name";
-$sql .= $joinDoctor ? ", d.dr_name, d.speciality, d.hospital_address, d.place" : ", NULL AS dr_name, NULL AS speciality, NULL AS hospital_address, NULL AS place";
+$sql .= $doctorSelect;
 $sql .= " FROM events e JOIN users u ON u.id = e.user_id ";
 if ($joinDoctor) $sql .= "LEFT JOIN doctors_masterlist d ON d.id = e.doctor_id ";
 $sql .= "WHERE $eventScopeSql AND e.`$eventStartColumn` >= ? AND e.`$eventStartColumn` < ? ORDER BY e.`$eventStartColumn` ASC";
@@ -43,6 +191,7 @@ foreach ($stmt->fetchAll() as $ev) {
     $day = date('Y-m-d', strtotime((string)$ev['task_start']));
     $doctorName = trim((string)($ev['dr_name'] ?? ''));
     $fallbackDoctor = preg_replace('/^visit:\s*/i', '', (string)($ev['title'] ?? ''));
+    $doctorBrief = dashboard_visit_brief_for_task($pdo, $ev, $scopeParams);
     $taskData = [
         'id' => (int)$ev['id'],
         'title' => (string)($ev['title'] ?? 'Task'),
@@ -53,6 +202,9 @@ foreach ($stmt->fetchAll() as $ev) {
         'speciality' => (string)($ev['speciality'] ?? ''),
         'city' => (string)($ev['city'] ?? ($ev['place'] ?? '')),
         'hospital' => (string)($ev['hospital_name'] ?? ($ev['hospital_address'] ?? '')),
+        'doctorEmail' => (string)($ev['doctor_email'] ?? ''),
+        'doctorContact' => (string)($ev['doctor_contact'] ?? ''),
+        'doctorBrief' => $doctorBrief,
         'purpose' => (string)($ev['purpose'] ?? ''),
         'medicine' => (string)($ev['medicine_name'] ?? ''),
         'notes' => (string)($ev['task_notes'] ?? ($ev['summary'] ?? '')),
@@ -75,6 +227,189 @@ $today = date('Y-m-d');
 
 render_header('Dashboard');
 ?>
+
+<style>
+.task-modal-wide .modal-card {
+  width: min(960px, calc(100vw - 32px));
+}
+
+.task-modal-wide .modal-details {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.doctor-brief-card {
+  margin: 16px 0;
+  padding: 18px;
+  border: 1px solid rgba(15, 118, 110, .16);
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at right top, rgba(20, 184, 166, .12), transparent 28%),
+    linear-gradient(145deg, #ffffff, #f8fffd);
+  box-shadow: 0 14px 32px rgba(15, 118, 110, .075);
+}
+
+.doctor-brief-card.is-first-time {
+  border-style: dashed;
+  background:
+    radial-gradient(circle at right top, rgba(250, 204, 21, .14), transparent 32%),
+    linear-gradient(145deg, #ffffff, #fffdf5);
+}
+
+.doctor-brief-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.doctor-brief-head h3 {
+  margin: 3px 0 0;
+  font-size: 22px;
+  letter-spacing: -.04em;
+  color: #061f1c;
+}
+
+.doctor-brief-head p {
+  margin: 5px 0 0;
+  color: #607872;
+  line-height: 1.5;
+  font-weight: 750;
+}
+
+.doctor-brief-count {
+  min-width: 96px;
+  padding: 10px 12px;
+  border-radius: 20px;
+  background: #ecfdf5;
+  color: #0f766e;
+  text-align: center;
+  font-weight: 950;
+}
+
+.doctor-brief-count strong {
+  display: block;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.doctor-brief-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.doctor-brief-mini {
+  padding: 12px;
+  border: 1px solid rgba(15, 118, 110, .12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .75);
+}
+
+.doctor-brief-mini span,
+.doctor-brief-products span,
+.doctor-brief-visits span {
+  display: block;
+  margin-bottom: 5px;
+  color: #607872;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-weight: 950;
+}
+
+.doctor-brief-mini strong {
+  color: #082f2b;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.doctor-brief-products {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 118, 110, .10);
+}
+
+.doctor-brief-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.doctor-brief-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #0f766e;
+  border: 1px solid #bbf7d0;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.doctor-brief-summary {
+  margin-top: 12px;
+  padding: 13px;
+  border-radius: 18px;
+  background: #f8fffd;
+  border: 1px solid rgba(15, 118, 110, .10);
+  color: #315c56;
+  line-height: 1.6;
+  font-weight: 750;
+}
+
+.doctor-brief-visits {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.doctor-brief-visit {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid rgba(15, 118, 110, .10);
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.doctor-brief-visit strong {
+  color: #082f2b;
+  font-size: 13px;
+}
+
+.doctor-brief-visit p {
+  margin: 3px 0 0;
+  color: #607872;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+@media (max-width: 760px) {
+  .task-modal-wide .modal-details,
+  .doctor-brief-grid,
+  .doctor-brief-visit {
+    grid-template-columns: 1fr;
+  }
+
+  .doctor-brief-head {
+    display: grid;
+  }
+
+  .doctor-brief-count {
+    width: 100%;
+  }
+}
+</style>
+
+
 <div class="dashboard-hero reveal">
   <div>
     <span class="eyebrow">Live Workspace</span>
@@ -157,6 +492,7 @@ render_header('Dashboard');
     <h2 id="taskModalTitle" data-task-modal-title>Task Details</h2>
     <div class="modal-meta" data-task-modal-meta></div>
     <div class="modal-details" data-task-modal-details></div>
+    <div data-task-modal-brief></div>
     <div class="modal-actions">
       <a class="btn ghost" data-task-modal-view href="tasks.php">Open Task Center</a>
       <a class="btn primary" data-task-modal-report href="report_form.php">Generate Report</a>
