@@ -1248,3 +1248,212 @@ html.sidebar-collapsed .logout:hover::after { content: "Logout"; }
     display: none;
   }
 }
+
+/* Sidebar scroll + compact navigation fix */
+.sidebar {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden !important;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.brand {
+  flex: 0 0 auto;
+}
+
+.nav {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.35) transparent;
+}
+
+.nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nav::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.28);
+  border-radius: 999px;
+}
+
+.nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,.42);
+}
+
+.sidebar-user {
+  flex: 0 0 auto;
+  margin-top: 0 !important;
+}
+
+.nav a {
+  min-height: 44px;
+  padding-top: 11px;
+  padding-bottom: 11px;
+}
+
+.sidebar-user {
+  padding: 14px;
+}
+
+.sidebar-user .avatar {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 8px;
+}
+
+.logout {
+  margin-top: 10px;
+  padding: 10px 12px;
+  min-height: 42px;
+}
+
+html.sidebar-collapsed .sidebar {
+  gap: 12px;
+}
+
+html.sidebar-collapsed .nav {
+  padding-right: 0;
+}
+
+html.sidebar-collapsed .sidebar-user {
+  flex: 0 0 auto;
+  max-height: none;
+}
+
+html.sidebar-collapsed .sidebar-user .avatar {
+  width: 44px;
+  height: 44px;
+}
+
+html.sidebar-collapsed .logout {
+  margin-top: 8px;
+}
+
+/* On shorter laptop/tablet screens, make the sidebar tighter but still scrollable */
+@media(max-height: 820px) and (min-width: 1181px) {
+  .sidebar {
+    padding-top: 14px;
+    padding-bottom: 14px;
+    gap: 10px;
+  }
+
+  .brand {
+    padding-bottom: 12px;
+  }
+
+  .brand-mark {
+    width: 46px;
+    height: 46px;
+    border-radius: 16px;
+  }
+
+  .brand strong {
+    font-size: 16px;
+  }
+
+  .brand span,
+  .sidebar-user span {
+    font-size: 12px;
+  }
+
+  .nav {
+    gap: 5px;
+  }
+
+  .nav a {
+    min-height: 40px;
+    padding: 9px 12px;
+    border-radius: 14px;
+  }
+
+  .nav-icon {
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
+    border-radius: 11px;
+    font-size: 11px;
+  }
+
+  .sidebar-user {
+    padding: 12px;
+    border-radius: 20px;
+  }
+
+  .sidebar-user .avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    font-size: 18px;
+  }
+
+  .logout {
+    min-height: 38px;
+    padding: 8px 10px;
+    border-radius: 13px;
+  }
+
+  html.sidebar-collapsed .brand-mark {
+    width: 46px;
+    height: 46px;
+  }
+
+  html.sidebar-collapsed .nav a {
+    width: 62px;
+    min-height: 48px;
+  }
+
+  html.sidebar-collapsed .nav-icon {
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+  }
+
+  html.sidebar-collapsed .sidebar-user {
+    width: 62px;
+    padding: 8px 6px;
+  }
+
+  html.sidebar-collapsed .sidebar-user .avatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  html.sidebar-collapsed .logout {
+    width: 40px;
+    height: 38px;
+    min-height: 38px;
+  }
+}
+
+/* Mobile drawer should scroll naturally if the phone/tablet height is small */
+@media(max-width: 1180px) {
+  .sidebar,
+  html.sidebar-collapsed .sidebar {
+    height: 100vh;
+    height: 100dvh;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    gap: 18px;
+  }
+
+  .nav,
+  html.sidebar-collapsed .nav {
+    overflow: visible;
+    flex: 0 0 auto;
+  }
+
+  .sidebar-user,
+  html.sidebar-collapsed .sidebar-user {
+    margin-top: auto !important;
+  }
+}
