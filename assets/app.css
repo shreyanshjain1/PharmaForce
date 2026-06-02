@@ -1609,222 +1609,118 @@ html.sidebar-collapsed .logout {
   }
 }
 
-
-/* Global scrollable modal system */
-.modal-backdrop,
-.modal-overlay,
-.task-modal-overlay,
-.calendar-task-modal-overlay,
-.dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(6, 35, 31, .46);
-  backdrop-filter: blur(8px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-}
-
-.modal-backdrop[hidden],
-.modal-overlay[hidden],
-.task-modal-overlay[hidden],
-.calendar-task-modal-overlay[hidden],
-.dialog-backdrop[hidden] {
-  display: none !important;
-}
-
-.modal-card,
-.modal-dialog,
-.task-modal,
-.calendar-task-modal,
-.dialog-card {
-  width: min(720px, calc(100vw - 48px));
-  max-height: calc(100dvh - 48px);
-  display: flex;
-  flex-direction: column;
+/* Helpful empty states */
+.empty,
+.approval-empty,
+.smart-empty-state {
+  position: relative;
   overflow: hidden;
-  border-radius: 30px;
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  text-align: center;
+  padding: 34px 26px !important;
+  border: 1px dashed rgba(15, 118, 110, .28) !important;
+  border-radius: 30px !important;
   background:
-    radial-gradient(circle at right top, rgba(20,184,166,.09), transparent 28%),
-    linear-gradient(145deg, #ffffff, #fbfffe);
-  border: 1px solid rgba(15, 118, 110, .16);
-  box-shadow: 0 34px 90px rgba(6, 35, 31, .28);
+    radial-gradient(circle at top right, rgba(20,184,166,.12), transparent 30%),
+    radial-gradient(circle at bottom left, rgba(250,204,21,.12), transparent 28%),
+    linear-gradient(145deg, #ffffff, #f8fffd) !important;
+  color: #486a64 !important;
+  font-weight: 800;
+  line-height: 1.55;
+  box-shadow: 0 14px 34px rgba(15, 118, 110, .055);
 }
 
-.modal-body,
-.task-modal-body,
-.calendar-task-modal-body,
-.dialog-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 18px 28px 28px;
-  -webkit-overflow-scrolling: touch;
+.empty::before,
+.approval-empty::before,
+.smart-empty-state::before {
+  content: "";
+  width: 62px;
+  height: 62px;
+  display: block;
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, rgba(15,118,110,.12), rgba(20,184,166,.18)),
+    #ffffff;
+  border: 1px solid rgba(15, 118, 110, .14);
+  box-shadow: 0 14px 28px rgba(15, 118, 110, .08);
 }
 
-.modal-actions,
-.task-modal-actions,
-.calendar-task-modal-actions,
-.dialog-actions {
+.empty::after,
+.approval-empty::after,
+.smart-empty-state::after {
+  content: "No matching records yet";
+  display: block;
+  color: #082f2b;
+  font-size: 18px;
+  font-weight: 950;
+  letter-spacing: -.03em;
+}
+
+.empty > *,
+.approval-empty > *,
+.smart-empty-state > * {
+  position: relative;
+  z-index: 1;
+}
+
+.empty-actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
+  margin-top: 6px;
 }
 
-body.modal-open {
-  overflow: hidden !important;
+.empty-actions .btn {
+  border-radius: 16px;
 }
 
-@media (max-width: 760px) {
-  .modal-backdrop,
-  .modal-overlay,
-  .task-modal-overlay,
-  .calendar-task-modal-overlay,
-  .dialog-backdrop {
-    padding: 10px;
-    align-items: start;
-    place-items: start center;
-  }
-
-  .modal-card,
-  .modal-dialog,
-  .task-modal,
-  .calendar-task-modal,
-  .dialog-card {
-    width: 100%;
-    max-height: calc(100dvh - 20px);
-    border-radius: 22px;
-  }
-
-  .modal-body,
-  .task-modal-body,
-  .calendar-task-modal-body,
-  .dialog-body {
-    padding: 14px 18px 20px;
-  }
-}
-
-
-/* Global confirmation dialog */
-.confirm-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 10050;
-  display: none;
-  place-items: center;
-  padding: 24px;
-  background: rgba(6, 35, 31, .48);
-  backdrop-filter: blur(8px);
-}
-
-.confirm-backdrop.is-open {
-  display: grid;
-}
-
-.confirm-dialog {
-  width: min(430px, 100%);
-  overflow: hidden;
-  border: 1px solid rgba(15, 118, 110, .16);
-  border-radius: 30px;
-  background:
-    radial-gradient(circle at right top, rgba(20, 184, 166, .10), transparent 28%),
-    linear-gradient(145deg, #ffffff, #fbfffe);
-  box-shadow: 0 34px 90px rgba(6, 35, 31, .30);
-  animation: confirmIn .18s ease both;
-}
-
-.confirm-head {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 22px 22px 14px;
-  border-bottom: 1px solid rgba(15, 118, 110, .10);
-}
-
-.confirm-icon {
-  width: 44px;
-  height: 44px;
-  flex: 0 0 44px;
-  display: grid;
-  place-items: center;
-  border-radius: 17px;
-  background: #ecfdf5;
-  color: #0f766e;
-  font-weight: 950;
-  font-size: 20px;
-}
-
-.confirm-dialog.is-danger .confirm-icon {
-  background: #fff1f2;
-  color: #b91c1c;
-}
-
-.confirm-head h3 {
-  margin: 0;
-  color: #061f1c;
-  font-size: 20px;
-  letter-spacing: -.035em;
-}
-
-.confirm-head p {
-  margin: 6px 0 0;
+.empty-note {
+  max-width: 620px;
+  margin: 0 auto;
   color: #607872;
-  line-height: 1.55;
+  font-size: 14px;
   font-weight: 750;
 }
 
-.confirm-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 16px 22px 22px;
+.empty.reports-empty::after { content: "No reports found"; }
+.empty.tasks-empty::after { content: "No tasks found"; }
+.empty.doctors-empty::after { content: "No doctors found"; }
+.empty.analytics-empty::after { content: "No analytics data yet"; }
+.empty.expenses-empty::after { content: "No expense reports found"; }
+.approval-empty::after { content: "No approval items found"; }
+
+.table-wrap:has(tbody:empty) {
+  overflow: visible;
 }
 
-.confirm-actions .btn {
-  min-width: 112px;
-}
-
-.confirm-actions .confirm-ok.is-danger {
-  background: #fff1f2;
-  color: #b91c1c;
-  border-color: #fecdd3;
-}
-
-.confirm-actions .confirm-ok.is-danger:hover {
-  background: #fee2e2;
-}
-
-@keyframes confirmIn {
-  from { opacity: 0; transform: translateY(12px) scale(.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-@media(max-width: 560px) {
-  .confirm-backdrop {
-    padding: 14px;
+@media(max-width: 760px) {
+  .empty,
+  .approval-empty,
+  .smart-empty-state {
+    padding: 26px 18px !important;
+    border-radius: 24px !important;
   }
 
-  .confirm-dialog {
-    border-radius: 24px;
+  .empty::before,
+  .approval-empty::before,
+  .smart-empty-state::before {
+    width: 54px;
+    height: 54px;
+    border-radius: 18px;
   }
 
-  .confirm-actions {
-    display: grid;
+  .empty::after,
+  .approval-empty::after,
+  .smart-empty-state::after {
+    font-size: 16px;
   }
 
-  .confirm-actions .btn {
+  .empty-actions,
+  .empty-actions .btn {
     width: 100%;
   }
-}
-
-
-/* Confirmation fallback patch: disable old custom confirmation overlay if cached/leftover */
-.confirm-backdrop {
-  display: none !important;
 }
