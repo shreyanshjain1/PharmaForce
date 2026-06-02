@@ -821,7 +821,7 @@ render_header('Report Details');
                     <textarea name="manager_comment" rows="3"><?= e($r['manager_comment']) ?></textarea>
                 </div>
 
-                <button class="btn primary">Save Review</button>
+                <button class="btn primary" data-confirm="Save this report review decision?" data-confirm-title="Save Report Review" data-confirm-ok="Save Review">Save Review</button>
             </div>
         </form>
     <?php endif; ?>

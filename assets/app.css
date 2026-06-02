@@ -1609,6 +1609,7 @@ html.sidebar-collapsed .logout {
   }
 }
 
+
 /* Global scrollable modal system */
 .modal-backdrop,
 .modal-overlay,
@@ -1654,34 +1655,6 @@ html.sidebar-collapsed .logout {
   box-shadow: 0 34px 90px rgba(6, 35, 31, .28);
 }
 
-.modal-backdrop.task-modal-wide .modal-card,
-.modal-overlay.task-modal-wide .modal-card,
-.task-modal-wide .modal-card,
-.modal-card.modal-wide,
-.modal-dialog.modal-wide,
-.task-modal.modal-wide,
-.calendar-task-modal.modal-wide,
-.dialog-card.modal-wide {
-  width: min(980px, calc(100vw - 48px));
-}
-
-.modal-head,
-.modal-header,
-.task-modal-head,
-.task-modal-header,
-.calendar-task-modal-header,
-.dialog-head {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  flex: 0 0 auto;
-  padding: 24px 28px 16px;
-  border-bottom: 1px solid rgba(15, 118, 110, .10);
-  background:
-    radial-gradient(circle at right top, rgba(20,184,166,.08), transparent 30%),
-    linear-gradient(135deg, rgba(255,255,255,.98), rgba(248,255,253,.98));
-}
-
 .modal-body,
 .task-modal-body,
 .calendar-task-modal-body,
@@ -1694,35 +1667,6 @@ html.sidebar-collapsed .logout {
   -webkit-overflow-scrolling: touch;
 }
 
-.modal-body::-webkit-scrollbar,
-.task-modal-body::-webkit-scrollbar,
-.calendar-task-modal-body::-webkit-scrollbar,
-.dialog-body::-webkit-scrollbar {
-  width: 8px;
-}
-
-.modal-body::-webkit-scrollbar-track,
-.task-modal-body::-webkit-scrollbar-track,
-.calendar-task-modal-body::-webkit-scrollbar-track,
-.dialog-body::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.modal-body::-webkit-scrollbar-thumb,
-.task-modal-body::-webkit-scrollbar-thumb,
-.calendar-task-modal-body::-webkit-scrollbar-thumb,
-.dialog-body::-webkit-scrollbar-thumb {
-  background: rgba(15, 118, 110, .26);
-  border-radius: 999px;
-}
-
-.modal-body::-webkit-scrollbar-thumb:hover,
-.task-modal-body::-webkit-scrollbar-thumb:hover,
-.calendar-task-modal-body::-webkit-scrollbar-thumb:hover,
-.dialog-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(15, 118, 110, .42);
-}
-
 .modal-actions,
 .task-modal-actions,
 .calendar-task-modal-actions,
@@ -1733,122 +1677,8 @@ html.sidebar-collapsed .logout {
   flex-wrap: wrap;
 }
 
-.modal-body > .modal-actions:last-child,
-.task-modal-body > .modal-actions:last-child,
-.calendar-task-modal-body > .modal-actions:last-child,
-.dialog-body > .modal-actions:last-child,
-.dialog-body > .dialog-actions:last-child {
-  position: sticky;
-  bottom: -28px;
-  z-index: 4;
-  margin: 18px -28px -28px;
-  padding: 16px 28px;
-  background: rgba(255,255,255,.90);
-  border-top: 1px solid rgba(15, 118, 110, .10);
-  backdrop-filter: blur(14px);
-}
-
-.modal-close,
-.task-modal-close,
-.calendar-task-modal-close,
-.dialog-close {
-  width: 44px;
-  height: 44px;
-  flex: 0 0 44px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(15, 118, 110, .18);
-  border-radius: 16px;
-  background: #ffffff;
-  color: #0b4f48;
-  font: inherit;
-  font-size: 24px;
-  font-weight: 900;
-  line-height: 1;
-  cursor: pointer;
-  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
-}
-
-.modal-close:hover,
-.task-modal-close:hover,
-.calendar-task-modal-close:hover,
-.dialog-close:hover {
-  transform: translateY(-1px);
-  background: #f2fbf9;
-  box-shadow: 0 12px 24px rgba(6, 35, 31, .12);
-}
-
 body.modal-open {
   overflow: hidden !important;
-}
-
-/* Legacy modal support: if modal-card has no explicit body wrapper, scroll the whole card safely */
-.modal-card:not(:has(.modal-body)):not(:has(.task-modal-body)):not(:has(.calendar-task-modal-body)):not(:has(.dialog-body)),
-.modal-dialog:not(:has(.modal-body)):not(:has(.task-modal-body)):not(:has(.calendar-task-modal-body)):not(:has(.dialog-body)),
-.dialog-card:not(:has(.modal-body)):not(:has(.task-modal-body)):not(:has(.calendar-task-modal-body)):not(:has(.dialog-body)) {
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 26px;
-}
-
-/* Keep legacy close buttons visible even when old modals scroll */
-.modal-card:not(:has(.modal-body)) > .modal-close,
-.modal-dialog:not(:has(.modal-body)) > .modal-close,
-.dialog-card:not(:has(.modal-body)) > .dialog-close {
-  position: sticky;
-  top: 0;
-  margin-left: auto;
-  z-index: 8;
-}
-
-@media (max-width: 1024px) {
-  .modal-backdrop,
-  .modal-overlay,
-  .task-modal-overlay,
-  .calendar-task-modal-overlay,
-  .dialog-backdrop {
-    align-items: start;
-    place-items: start center;
-    padding: 16px;
-  }
-
-  .modal-card,
-  .modal-dialog,
-  .task-modal,
-  .calendar-task-modal,
-  .dialog-card,
-  .modal-backdrop.task-modal-wide .modal-card,
-  .modal-overlay.task-modal-wide .modal-card,
-  .task-modal-wide .modal-card {
-    width: min(940px, 100%);
-    max-height: calc(100dvh - 32px);
-    border-radius: 26px;
-  }
-
-  .modal-head,
-  .modal-header,
-  .task-modal-head,
-  .task-modal-header,
-  .calendar-task-modal-header,
-  .dialog-head {
-    padding: 22px 22px 16px;
-  }
-
-  .modal-body,
-  .task-modal-body,
-  .calendar-task-modal-body,
-  .dialog-body {
-    padding: 16px 22px 22px;
-  }
-
-  .modal-body > .modal-actions:last-child,
-  .task-modal-body > .modal-actions:last-child,
-  .calendar-task-modal-body > .modal-actions:last-child,
-  .dialog-body > .modal-actions:last-child,
-  .dialog-body > .dialog-actions:last-child {
-    margin: 18px -22px -22px;
-    padding: 14px 22px;
-  }
 }
 
 @media (max-width: 760px) {
@@ -1858,28 +1688,18 @@ body.modal-open {
   .calendar-task-modal-overlay,
   .dialog-backdrop {
     padding: 10px;
+    align-items: start;
+    place-items: start center;
   }
 
   .modal-card,
   .modal-dialog,
   .task-modal,
   .calendar-task-modal,
-  .dialog-card,
-  .modal-backdrop.task-modal-wide .modal-card,
-  .modal-overlay.task-modal-wide .modal-card,
-  .task-modal-wide .modal-card {
+  .dialog-card {
     width: 100%;
     max-height: calc(100dvh - 20px);
     border-radius: 22px;
-  }
-
-  .modal-head,
-  .modal-header,
-  .task-modal-head,
-  .task-modal-header,
-  .calendar-task-modal-header,
-  .dialog-head {
-    padding: 18px 18px 14px;
   }
 
   .modal-body,
@@ -1888,33 +1708,123 @@ body.modal-open {
   .dialog-body {
     padding: 14px 18px 20px;
   }
+}
 
-  .modal-body > .modal-actions:last-child,
-  .task-modal-body > .modal-actions:last-child,
-  .calendar-task-modal-body > .modal-actions:last-child,
-  .dialog-body > .modal-actions:last-child,
-  .dialog-body > .dialog-actions:last-child {
-    display: grid;
-    margin: 18px -18px -20px;
-    padding: 14px 18px;
+
+/* Global confirmation dialog */
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: none;
+  place-items: center;
+  padding: 24px;
+  background: rgba(6, 35, 31, .48);
+  backdrop-filter: blur(8px);
+}
+
+.confirm-backdrop.is-open {
+  display: grid;
+}
+
+.confirm-dialog {
+  width: min(430px, 100%);
+  overflow: hidden;
+  border: 1px solid rgba(15, 118, 110, .16);
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at right top, rgba(20, 184, 166, .10), transparent 28%),
+    linear-gradient(145deg, #ffffff, #fbfffe);
+  box-shadow: 0 34px 90px rgba(6, 35, 31, .30);
+  animation: confirmIn .18s ease both;
+}
+
+.confirm-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 22px 22px 14px;
+  border-bottom: 1px solid rgba(15, 118, 110, .10);
+}
+
+.confirm-icon {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 17px;
+  background: #ecfdf5;
+  color: #0f766e;
+  font-weight: 950;
+  font-size: 20px;
+}
+
+.confirm-dialog.is-danger .confirm-icon {
+  background: #fff1f2;
+  color: #b91c1c;
+}
+
+.confirm-head h3 {
+  margin: 0;
+  color: #061f1c;
+  font-size: 20px;
+  letter-spacing: -.035em;
+}
+
+.confirm-head p {
+  margin: 6px 0 0;
+  color: #607872;
+  line-height: 1.55;
+  font-weight: 750;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 22px 22px;
+}
+
+.confirm-actions .btn {
+  min-width: 112px;
+}
+
+.confirm-actions .confirm-ok.is-danger {
+  background: #fff1f2;
+  color: #b91c1c;
+  border-color: #fecdd3;
+}
+
+.confirm-actions .confirm-ok.is-danger:hover {
+  background: #fee2e2;
+}
+
+@keyframes confirmIn {
+  from { opacity: 0; transform: translateY(12px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media(max-width: 560px) {
+  .confirm-backdrop {
+    padding: 14px;
   }
 
-  .modal-body > .modal-actions:last-child .btn,
-  .task-modal-body > .modal-actions:last-child .btn,
-  .calendar-task-modal-body > .modal-actions:last-child .btn,
-  .dialog-body > .modal-actions:last-child .btn,
-  .dialog-body > .dialog-actions:last-child .btn {
+  .confirm-dialog {
+    border-radius: 24px;
+  }
+
+  .confirm-actions {
+    display: grid;
+  }
+
+  .confirm-actions .btn {
     width: 100%;
   }
+}
 
-  .modal-close,
-  .task-modal-close,
-  .calendar-task-modal-close,
-  .dialog-close {
-    width: 40px;
-    height: 40px;
-    flex-basis: 40px;
-    border-radius: 14px;
-    font-size: 22px;
-  }
+
+/* Confirmation fallback patch: disable old custom confirmation overlay if cached/leftover */
+.confirm-backdrop {
+  display: none !important;
 }

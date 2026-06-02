@@ -334,9 +334,9 @@ render_header('Approval Center');
                         <textarea name="comment" placeholder="Optional review note"><?= e($currentRole === 'manager' ? ($item['manager_comment'] ?? '') : ($item['district_comment'] ?? '')) ?></textarea>
                     </div>
                     <div class="approval-action-buttons">
-                        <button class="btn ghost" name="decision" value="pending">Keep Pending</button>
-                        <button class="btn danger" name="decision" value="needs_changes">Needs Changes</button>
-                        <button class="btn primary" name="decision" value="approved">Approve My Step</button>
+                        <button class="btn ghost" name="decision" value="pending" data-confirm="Keep this item pending for review?" data-confirm-title="Keep Pending" data-confirm-ok="Keep Pending">Keep Pending</button>
+                        <button class="btn danger" name="decision" value="needs_changes" data-confirm="Request changes for this approval item? The submitter will need to update and resubmit it." data-confirm-title="Request Changes" data-confirm-ok="Request Changes" data-confirm-danger="1">Needs Changes</button>
+                        <button class="btn primary" name="decision" value="approved" data-confirm="Approve your review step for this item? If the other approval step is already approved, this item will become fully approved." data-confirm-title="Approve Item" data-confirm-ok="Approve">Approve My Step</button>
                     </div>
                 </form>
             </article>

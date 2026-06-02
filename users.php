@@ -274,7 +274,7 @@ render_header('Users');
                                             <input type="hidden" name="action" value="toggle_user">
                                             <input type="hidden" name="id" value="<?= $userId ?>">
                                             <input type="hidden" name="active" value="<?= $isActive ? 0 : 1 ?>">
-                                            <button class="status-toggle <?= $isActive ? 'is-on' : 'is-off' ?>" type="submit" <?= $canToggle ? '' : 'disabled' ?> title="<?= $isActive ? 'Deactivate user' : 'Activate user' ?>">
+                                            <button class="status-toggle <?= $isActive ? 'is-on' : 'is-off' ?>" type="submit" <?= $canToggle ? '' : 'disabled' ?> title="<?= $isActive ? 'Deactivate user' : 'Activate user' ?>" data-confirm="<?= $isActive ? 'Deactivate this user account? The user will no longer be able to access the system.' : 'Activate this user account? The user will be able to access the system again.' ?>" data-confirm-title="<?= $isActive ? 'Deactivate User' : 'Activate User' ?>" data-confirm-ok="<?= $isActive ? 'Deactivate' : 'Activate' ?>" data-confirm-danger="<?= $isActive ? '1' : '0' ?>">
                                                 <span></span>
                                                 <strong><?= $isActive ? 'On' : 'Off' ?></strong>
                                             </button>

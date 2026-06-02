@@ -328,7 +328,7 @@ if ($action === 'new' || $action === 'edit') {
                                 </div>
 
                                 <div class="expense-remove-wrap">
-                                    <button type="button" class="btn small ghost" data-remove-expense-row>Remove</button>
+                                    <button type="button" class="btn small ghost" data-remove-expense-row data-confirm="Remove this expense row? Any unsaved row details will be lost." data-confirm-title="Remove Expense Row" data-confirm-ok="Remove" data-confirm-danger="1">Remove</button>
                                 </div>
                             </div>
                         </div>
@@ -400,7 +400,7 @@ if ($action === 'new' || $action === 'edit') {
                     <div class="expense-file-note">New rows can save without receipt, or attach one later after saving.</div>
                 </div>
                 <div class="expense-remove-wrap">
-                    <button type="button" class="btn small ghost" data-remove-expense-row>Remove</button>
+                    <button type="button" class="btn small ghost" data-remove-expense-row data-confirm="Remove this expense row? Any unsaved row details will be lost." data-confirm-title="Remove Expense Row" data-confirm-ok="Remove" data-confirm-danger="1">Remove</button>
                 </div>
             </div>
         </div>
@@ -755,7 +755,7 @@ if ($action === 'new' || $action === 'edit') {
                 <div class="expense-status-form">
                     <div class="field"><label>Status</label><select name="status"><?php foreach (['pending','approved','needs_changes'] as $s): ?><option value="<?= e($s) ?>" <?= $report['status']===$s?'selected':'' ?>><?= e(expense_status_label($s)) ?></option><?php endforeach; ?></select></div>
                     <div class="field"><label>Comment</label><textarea name="manager_comment" rows="3"><?= e($report['manager_comment']) ?></textarea></div>
-                    <button class="btn primary">Save Review</button>
+                    <button class="btn primary" data-confirm="Save this expense review decision?" data-confirm-title="Save Expense Review" data-confirm-ok="Save Review">Save Review</button>
                 </div>
             </form>
         <?php endif; ?>
