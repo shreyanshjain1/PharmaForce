@@ -1,7 +1,17 @@
-document.addEventListener('click', (event) => {
-  const toggle = event.target.closest('[data-toggle-sidebar]');
-  if (toggle) document.getElementById('sidebar')?.classList.toggle('open');
-});
+// Sidebar safety sync for tablet/mobile drawer.
+(function () {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+
+  function syncSidebarBackdrop() {
+    document.body.classList.toggle('sidebar-backdrop-active', window.innerWidth <= 1180 && sidebar.classList.contains('open'));
+  }
+
+  const observer = new MutationObserver(syncSidebarBackdrop);
+  observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
+  window.addEventListener('resize', syncSidebarBackdrop);
+  syncSidebarBackdrop();
+})();
 
 const doctorSelect = document.querySelector('[data-doctor-select]');
 if (doctorSelect && window.DOCTORS) {

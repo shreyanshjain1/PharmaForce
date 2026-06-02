@@ -188,7 +188,7 @@ function render_header(string $title, string $eyebrow = 'Pharmastar CRM'): void 
       }
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="assets/app.css?v=20260526-collapsible-sidebar">
+  <link rel="stylesheet" href="assets/app.css?v=20260526-sidebar-final">
 </head>
 <body>
 <div class="app-shell">
@@ -237,27 +237,52 @@ function render_footer(): void { ?>
 <script>
 (function () {
   const root = document.documentElement;
-  const toggle = document.querySelector('[data-collapse-sidebar]');
+  const body = document.body;
   const sidebar = document.getElementById('sidebar');
+  const collapseToggle = document.querySelector('[data-collapse-sidebar]');
+  const mobileToggleSelector = '[data-toggle-sidebar]';
+  const mobileBreakpoint = 1180;
 
-  function applyState(collapsed) {
+  function isMobileSidebarMode() {
+    return window.innerWidth <= mobileBreakpoint;
+  }
+
+  function applyCollapsedState(collapsed) {
     root.classList.toggle('sidebar-collapsed', collapsed);
-    if (toggle) {
-      toggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
-      toggle.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+    if (collapseToggle) {
+      collapseToggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+      collapseToggle.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
     }
   }
 
-  try {
-    applyState(localStorage.getItem('pharmaforce_sidebar_collapsed') === '1');
-  } catch (e) {
-    applyState(false);
+  function openMobileSidebar() {
+    if (!sidebar) return;
+    sidebar.classList.add('open');
+    body.classList.add('sidebar-backdrop-active');
   }
 
-  if (toggle) {
-    toggle.addEventListener('click', function () {
+  function closeMobileSidebar() {
+    if (!sidebar) return;
+    sidebar.classList.remove('open');
+    body.classList.remove('sidebar-backdrop-active');
+  }
+
+  function toggleMobileSidebar() {
+    if (!sidebar) return;
+    sidebar.classList.contains('open') ? closeMobileSidebar() : openMobileSidebar();
+  }
+
+  try {
+    applyCollapsedState(localStorage.getItem('pharmaforce_sidebar_collapsed') === '1');
+  } catch (e) {
+    applyCollapsedState(false);
+  }
+
+  if (collapseToggle) {
+    collapseToggle.addEventListener('click', function () {
+      if (isMobileSidebarMode()) return;
       const collapsed = !root.classList.contains('sidebar-collapsed');
-      applyState(collapsed);
+      applyCollapsedState(collapsed);
       try {
         localStorage.setItem('pharmaforce_sidebar_collapsed', collapsed ? '1' : '0');
       } catch (e) {}
@@ -265,16 +290,36 @@ function render_footer(): void { ?>
   }
 
   document.addEventListener('click', function (event) {
-    if (window.innerWidth > 1180) return;
-    const mobileToggle = event.target.closest('[data-toggle-sidebar]');
-    const clickedInsideSidebar = event.target.closest('#sidebar');
-    if (!mobileToggle && !clickedInsideSidebar && sidebar) {
-      sidebar.classList.remove('open');
+    const mobileToggle = event.target.closest(mobileToggleSelector);
+
+    if (mobileToggle) {
+      if (isMobileSidebarMode()) {
+        event.preventDefault();
+        toggleMobileSidebar();
+      }
+      return;
     }
+
+    if (!isMobileSidebarMode() || !sidebar || !sidebar.classList.contains('open')) return;
+
+    const clickedInsideSidebar = event.target.closest('#sidebar');
+    const clickedNavLink = event.target.closest('#sidebar a');
+
+    if (clickedNavLink || !clickedInsideSidebar) {
+      closeMobileSidebar();
+    }
+  }, true);
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && isMobileSidebarMode()) closeMobileSidebar();
+  });
+
+  window.addEventListener('resize', function () {
+    if (!isMobileSidebarMode()) closeMobileSidebar();
   });
 })();
 </script>
-<script src="assets/app.js?v=20260526-collapsible-sidebar"></script>
+<script src="assets/app.js?v=20260526-sidebar-final"></script>
 </body>
 </html>
 <?php }
