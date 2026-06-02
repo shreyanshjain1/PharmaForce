@@ -283,6 +283,7 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') closeTaskModal();
 });
 
+
 // Global modal scroll + tap safety.
 (function () {
   const modalSelectors = [
@@ -300,7 +301,7 @@ document.addEventListener('keydown', (event) => {
   }
 
   function syncModalOpenState() {
-    document.body.classList.toggle('modal-open', visibleModals().length > 0);
+    document.body.classList.toggle('modal-open', visibleModals().length > 0 || document.querySelector('.confirm-backdrop.is-open'));
   }
 
   function closeModal(modal) {
@@ -339,5 +340,80 @@ document.addEventListener('keydown', (event) => {
 
   window.addEventListener('load', syncModalOpenState);
   syncModalOpenState();
+})();
+
+// Bulletproof confirmation prompts for important actions.
+// Uses the browser-native confirm dialog so it cannot fail because of modal CSS/z-index issues.
+(function () {
+  function messageFor(target) {
+    return target.getAttribute('data-confirm') || 'Are you sure you want to continue?';
+  }
+
+  function allowOnce(target) {
+    target.setAttribute('data-confirm-bypass', '1');
+    setTimeout(function () {
+      target.removeAttribute('data-confirm-bypass');
+    }, 1000);
+  }
+
+  function submitForm(target) {
+    const form = target.form || target.closest('form');
+    if (!form) return false;
+
+    if (target.name) {
+      form.querySelectorAll('input[data-confirm-temp="1"]').forEach(function (input) {
+        input.remove();
+      });
+
+      const hidden = document.createElement('input');
+      hidden.type = 'hidden';
+      hidden.name = target.name;
+      hidden.value = target.value || '';
+      hidden.setAttribute('data-confirm-temp', '1');
+      form.appendChild(hidden);
+    }
+
+    form.setAttribute('data-confirm-bypass', '1');
+
+    if (form.requestSubmit) {
+      form.requestSubmit();
+    } else {
+      form.submit();
+    }
+
+    setTimeout(function () {
+      form.removeAttribute('data-confirm-bypass');
+    }, 1000);
+
+    return true;
+  }
+
+  document.addEventListener('click', function (event) {
+    const target = event.target.closest('[data-confirm]');
+    if (!target || target.disabled || target.getAttribute('data-confirm-bypass') === '1') return;
+
+    const form = target.form || target.closest('form');
+    if (form && form.getAttribute('data-confirm-bypass') === '1') return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const confirmed = window.confirm(messageFor(target));
+    if (!confirmed) return;
+
+    const link = target.closest('a[href]');
+    if (link) {
+      window.location.href = link.href;
+      return;
+    }
+
+    if (form) {
+      submitForm(target);
+      return;
+    }
+
+    allowOnce(target);
+    target.click();
+  }, true);
 })();
 

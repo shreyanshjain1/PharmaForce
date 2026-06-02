@@ -188,7 +188,7 @@ function render_header(string $title, string $eyebrow = 'Pharmastar CRM'): void 
       }
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="assets/app.css?v=20260526-sidebar-final">
+  <link rel="stylesheet" href="assets/app.css?v=20260526-confirmations">
 </head>
 <body>
 <div class="app-shell">
@@ -216,7 +216,7 @@ function render_header(string $title, string $eyebrow = 'Pharmastar CRM'): void 
     <div class="sidebar-user">
       <div class="avatar"><?= e(strtoupper(substr($u['name'] ?? 'U', 0, 1))) ?></div>
       <div class="sidebar-user-copy"><strong><?= e($u['name'] ?? '') ?></strong><span><?= e(role_label($u['role'] ?? 'employee')) ?></span></div>
-      <a href="logout.php" class="logout"><span class="logout-label">Logout</span><span class="logout-icon">↪</span></a>
+      <a href="logout.php" class="logout" data-confirm="Are you sure you want to log out?" data-confirm-title="Confirm Logout" data-confirm-ok="Logout"><span class="logout-label">Logout</span><span class="logout-icon">↪</span></a>
     </div>
   </aside>
   <main class="main">
@@ -237,52 +237,27 @@ function render_footer(): void { ?>
 <script>
 (function () {
   const root = document.documentElement;
-  const body = document.body;
+  const toggle = document.querySelector('[data-collapse-sidebar]');
   const sidebar = document.getElementById('sidebar');
-  const collapseToggle = document.querySelector('[data-collapse-sidebar]');
-  const mobileToggleSelector = '[data-toggle-sidebar]';
-  const mobileBreakpoint = 1180;
 
-  function isMobileSidebarMode() {
-    return window.innerWidth <= mobileBreakpoint;
-  }
-
-  function applyCollapsedState(collapsed) {
+  function applyState(collapsed) {
     root.classList.toggle('sidebar-collapsed', collapsed);
-    if (collapseToggle) {
-      collapseToggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
-      collapseToggle.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+    if (toggle) {
+      toggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+      toggle.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
     }
   }
 
-  function openMobileSidebar() {
-    if (!sidebar) return;
-    sidebar.classList.add('open');
-    body.classList.add('sidebar-backdrop-active');
-  }
-
-  function closeMobileSidebar() {
-    if (!sidebar) return;
-    sidebar.classList.remove('open');
-    body.classList.remove('sidebar-backdrop-active');
-  }
-
-  function toggleMobileSidebar() {
-    if (!sidebar) return;
-    sidebar.classList.contains('open') ? closeMobileSidebar() : openMobileSidebar();
-  }
-
   try {
-    applyCollapsedState(localStorage.getItem('pharmaforce_sidebar_collapsed') === '1');
+    applyState(localStorage.getItem('pharmaforce_sidebar_collapsed') === '1');
   } catch (e) {
-    applyCollapsedState(false);
+    applyState(false);
   }
 
-  if (collapseToggle) {
-    collapseToggle.addEventListener('click', function () {
-      if (isMobileSidebarMode()) return;
+  if (toggle) {
+    toggle.addEventListener('click', function () {
       const collapsed = !root.classList.contains('sidebar-collapsed');
-      applyCollapsedState(collapsed);
+      applyState(collapsed);
       try {
         localStorage.setItem('pharmaforce_sidebar_collapsed', collapsed ? '1' : '0');
       } catch (e) {}
@@ -290,36 +265,16 @@ function render_footer(): void { ?>
   }
 
   document.addEventListener('click', function (event) {
-    const mobileToggle = event.target.closest(mobileToggleSelector);
-
-    if (mobileToggle) {
-      if (isMobileSidebarMode()) {
-        event.preventDefault();
-        toggleMobileSidebar();
-      }
-      return;
-    }
-
-    if (!isMobileSidebarMode() || !sidebar || !sidebar.classList.contains('open')) return;
-
+    if (window.innerWidth > 1180) return;
+    const mobileToggle = event.target.closest('[data-toggle-sidebar]');
     const clickedInsideSidebar = event.target.closest('#sidebar');
-    const clickedNavLink = event.target.closest('#sidebar a');
-
-    if (clickedNavLink || !clickedInsideSidebar) {
-      closeMobileSidebar();
+    if (!mobileToggle && !clickedInsideSidebar && sidebar) {
+      sidebar.classList.remove('open');
     }
-  }, true);
-
-  document.addEventListener('keydown', function (event) {
-    if (event.key === 'Escape' && isMobileSidebarMode()) closeMobileSidebar();
-  });
-
-  window.addEventListener('resize', function () {
-    if (!isMobileSidebarMode()) closeMobileSidebar();
   });
 })();
 </script>
-<script src="assets/app.js?v=20260526-sidebar-final"></script>
+<script src="assets/app.js?v=20260526-confirmations"></script>
 </body>
 </html>
 <?php }
