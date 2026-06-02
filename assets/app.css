@@ -1609,256 +1609,312 @@ html.sidebar-collapsed .logout {
   }
 }
 
-/* Sidebar/tablet final polish */
-body.sidebar-backdrop-active {
-  overflow: hidden !important;
-  touch-action: none;
-}
-
-body.sidebar-backdrop-active::before {
-  content: "";
+/* Global scrollable modal system */
+.modal-backdrop,
+.modal-overlay,
+.task-modal-overlay,
+.calendar-task-modal-overlay,
+.dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(6, 35, 31, .44);
-  backdrop-filter: blur(5px);
-  z-index: 70;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(6, 35, 31, .46);
+  backdrop-filter: blur(8px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
-/* Desktop sidebar: fixed height, scrollable nav, visible user card */
-@media (min-width: 1181px) {
-  .sidebar {
-    height: 100vh !important;
-    height: 100dvh !important;
-    overflow: hidden !important;
-    display: flex !important;
-    flex-direction: column !important;
+.modal-backdrop[hidden],
+.modal-overlay[hidden],
+.task-modal-overlay[hidden],
+.calendar-task-modal-overlay[hidden],
+.dialog-backdrop[hidden] {
+  display: none !important;
+}
+
+.modal-card,
+.modal-dialog,
+.task-modal,
+.calendar-task-modal,
+.dialog-card {
+  width: min(720px, calc(100vw - 48px));
+  max-height: calc(100dvh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at right top, rgba(20,184,166,.09), transparent 28%),
+    linear-gradient(145deg, #ffffff, #fbfffe);
+  border: 1px solid rgba(15, 118, 110, .16);
+  box-shadow: 0 34px 90px rgba(6, 35, 31, .28);
+}
+
+.modal-backdrop.task-modal-wide .modal-card,
+.modal-overlay.task-modal-wide .modal-card,
+.task-modal-wide .modal-card,
+.modal-card.modal-wide,
+.modal-dialog.modal-wide,
+.task-modal.modal-wide,
+.calendar-task-modal.modal-wide,
+.dialog-card.modal-wide {
+  width: min(980px, calc(100vw - 48px));
+}
+
+.modal-head,
+.modal-header,
+.task-modal-head,
+.task-modal-header,
+.calendar-task-modal-header,
+.dialog-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  flex: 0 0 auto;
+  padding: 24px 28px 16px;
+  border-bottom: 1px solid rgba(15, 118, 110, .10);
+  background:
+    radial-gradient(circle at right top, rgba(20,184,166,.08), transparent 30%),
+    linear-gradient(135deg, rgba(255,255,255,.98), rgba(248,255,253,.98));
+}
+
+.modal-body,
+.task-modal-body,
+.calendar-task-modal-body,
+.dialog-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 18px 28px 28px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.modal-body::-webkit-scrollbar,
+.task-modal-body::-webkit-scrollbar,
+.calendar-task-modal-body::-webkit-scrollbar,
+.dialog-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-body::-webkit-scrollbar-track,
+.task-modal-body::-webkit-scrollbar-track,
+.calendar-task-modal-body::-webkit-scrollbar-track,
+.dialog-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-body::-webkit-scrollbar-thumb,
+.task-modal-body::-webkit-scrollbar-thumb,
+.calendar-task-modal-body::-webkit-scrollbar-thumb,
+.dialog-body::-webkit-scrollbar-thumb {
+  background: rgba(15, 118, 110, .26);
+  border-radius: 999px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover,
+.task-modal-body::-webkit-scrollbar-thumb:hover,
+.calendar-task-modal-body::-webkit-scrollbar-thumb:hover,
+.dialog-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 118, 110, .42);
+}
+
+.modal-actions,
+.task-modal-actions,
+.calendar-task-modal-actions,
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.modal-body > .modal-actions:last-child,
+.task-modal-body > .modal-actions:last-child,
+.calendar-task-modal-body > .modal-actions:last-child,
+.dialog-body > .modal-actions:last-child,
+.dialog-body > .dialog-actions:last-child {
+  position: sticky;
+  bottom: -28px;
+  z-index: 4;
+  margin: 18px -28px -28px;
+  padding: 16px 28px;
+  background: rgba(255,255,255,.90);
+  border-top: 1px solid rgba(15, 118, 110, .10);
+  backdrop-filter: blur(14px);
+}
+
+.modal-close,
+.task-modal-close,
+.calendar-task-modal-close,
+.dialog-close {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(15, 118, 110, .18);
+  border-radius: 16px;
+  background: #ffffff;
+  color: #0b4f48;
+  font: inherit;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.modal-close:hover,
+.task-modal-close:hover,
+.calendar-task-modal-close:hover,
+.dialog-close:hover {
+  transform: translateY(-1px);
+  background: #f2fbf9;
+  box-shadow: 0 12px 24px rgba(6, 35, 31, .12);
+}
+
+body.modal-open {
+  overflow: hidden !important;
+}
+
+/* Legacy modal support: if modal-card has no explicit body wrapper, scroll the whole card safely */
+.modal-card:not(:has(.modal-body)):not(:has(.task-modal-body)):not(:has(.calendar-task-modal-body)):not(:has(.dialog-body)),
+.modal-dialog:not(:has(.modal-body)):not(:has(.task-modal-body)):not(:has(.calendar-task-modal-body)):not(:has(.dialog-body)),
+.dialog-card:not(:has(.modal-body)):not(:has(.task-modal-body)):not(:has(.calendar-task-modal-body)):not(:has(.dialog-body)) {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 26px;
+}
+
+/* Keep legacy close buttons visible even when old modals scroll */
+.modal-card:not(:has(.modal-body)) > .modal-close,
+.modal-dialog:not(:has(.modal-body)) > .modal-close,
+.dialog-card:not(:has(.modal-body)) > .dialog-close {
+  position: sticky;
+  top: 0;
+  margin-left: auto;
+  z-index: 8;
+}
+
+@media (max-width: 1024px) {
+  .modal-backdrop,
+  .modal-overlay,
+  .task-modal-overlay,
+  .calendar-task-modal-overlay,
+  .dialog-backdrop {
+    align-items: start;
+    place-items: start center;
+    padding: 16px;
   }
 
-  .brand {
-    flex: 0 0 auto !important;
+  .modal-card,
+  .modal-dialog,
+  .task-modal,
+  .calendar-task-modal,
+  .dialog-card,
+  .modal-backdrop.task-modal-wide .modal-card,
+  .modal-overlay.task-modal-wide .modal-card,
+  .task-modal-wide .modal-card {
+    width: min(940px, 100%);
+    max-height: calc(100dvh - 32px);
+    border-radius: 26px;
   }
 
-  .nav {
-    flex: 1 1 auto !important;
-    min-height: 0 !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    padding-right: 5px !important;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255,255,255,.35) transparent;
+  .modal-head,
+  .modal-header,
+  .task-modal-head,
+  .task-modal-header,
+  .calendar-task-modal-header,
+  .dialog-head {
+    padding: 22px 22px 16px;
   }
 
-  .nav::-webkit-scrollbar {
-    width: 6px;
+  .modal-body,
+  .task-modal-body,
+  .calendar-task-modal-body,
+  .dialog-body {
+    padding: 16px 22px 22px;
   }
 
-  .nav::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .nav::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,.30);
-    border-radius: 999px;
-  }
-
-  .nav::-webkit-scrollbar-thumb:hover {
-    background: rgba(255,255,255,.46);
-  }
-
-  .sidebar-user {
-    flex: 0 0 auto !important;
-    margin-top: 0 !important;
+  .modal-body > .modal-actions:last-child,
+  .task-modal-body > .modal-actions:last-child,
+  .calendar-task-modal-body > .modal-actions:last-child,
+  .dialog-body > .modal-actions:last-child,
+  .dialog-body > .dialog-actions:last-child {
+    margin: 18px -22px -22px;
+    padding: 14px 22px;
   }
 }
 
-/* Tablet/mobile drawer: never becomes huge, never keeps collapsed desktop shape */
-@media (max-width: 1180px) {
-  .app-shell,
-  html.sidebar-collapsed .app-shell {
-    display: block !important;
-    grid-template-columns: 1fr !important;
+@media (max-width: 760px) {
+  .modal-backdrop,
+  .modal-overlay,
+  .task-modal-overlay,
+  .calendar-task-modal-overlay,
+  .dialog-backdrop {
+    padding: 10px;
   }
 
-  .main,
-  html.sidebar-collapsed .main {
-    width: 100% !important;
-    min-width: 0 !important;
+  .modal-card,
+  .modal-dialog,
+  .task-modal,
+  .calendar-task-modal,
+  .dialog-card,
+  .modal-backdrop.task-modal-wide .modal-card,
+  .modal-overlay.task-modal-wide .modal-card,
+  .task-modal-wide .modal-card {
+    width: 100%;
+    max-height: calc(100dvh - 20px);
+    border-radius: 22px;
   }
 
-  .sidebar,
-  html.sidebar-collapsed .sidebar {
-    position: fixed !important;
-    inset: 0 auto 0 0 !important;
-    width: min(320px, 88vw) !important;
-    max-width: 320px !important;
-    min-width: 0 !important;
-    height: 100vh !important;
-    height: 100dvh !important;
-    padding: 20px !important;
-    z-index: 80 !important;
-    transform: translateX(-105%) !important;
-    overflow: hidden !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 16px !important;
-    box-shadow: 22px 0 60px rgba(6, 59, 53, .30) !important;
+  .modal-head,
+  .modal-header,
+  .task-modal-head,
+  .task-modal-header,
+  .calendar-task-modal-header,
+  .dialog-head {
+    padding: 18px 18px 14px;
   }
 
-  .sidebar.open,
-  html.sidebar-collapsed .sidebar.open {
-    transform: translateX(0) !important;
+  .modal-body,
+  .task-modal-body,
+  .calendar-task-modal-body,
+  .dialog-body {
+    padding: 14px 18px 20px;
   }
 
-  .brand,
-  html.sidebar-collapsed .brand {
-    width: 100% !important;
-    flex: 0 0 auto !important;
-    justify-content: flex-start !important;
+  .modal-body > .modal-actions:last-child,
+  .task-modal-body > .modal-actions:last-child,
+  .calendar-task-modal-body > .modal-actions:last-child,
+  .dialog-body > .modal-actions:last-child,
+  .dialog-body > .dialog-actions:last-child {
+    display: grid;
+    margin: 18px -18px -20px;
+    padding: 14px 18px;
   }
 
-  .brand-copy,
-  html.sidebar-collapsed .brand-copy,
-  .nav-label,
-  html.sidebar-collapsed .nav-label,
-  .sidebar-user-copy,
-  html.sidebar-collapsed .sidebar-user-copy,
-  .logout-label,
-  html.sidebar-collapsed .logout-label {
-    opacity: 1 !important;
-    width: auto !important;
-    max-width: none !important;
-    overflow: visible !important;
-    transform: none !important;
-    pointer-events: auto !important;
+  .modal-body > .modal-actions:last-child .btn,
+  .task-modal-body > .modal-actions:last-child .btn,
+  .calendar-task-modal-body > .modal-actions:last-child .btn,
+  .dialog-body > .modal-actions:last-child .btn,
+  .dialog-body > .dialog-actions:last-child .btn {
+    width: 100%;
   }
 
-  .brand-mark,
-  html.sidebar-collapsed .brand-mark {
-    width: 52px !important;
-    height: 52px !important;
-    flex: 0 0 52px !important;
-  }
-
-  .sidebar-collapse-btn,
-  html.sidebar-collapsed .sidebar-collapse-btn {
-    display: none !important;
-  }
-
-  .nav,
-  html.sidebar-collapsed .nav {
-    width: 100% !important;
-    flex: 1 1 auto !important;
-    min-height: 0 !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    padding-right: 4px !important;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255,255,255,.32) transparent;
-  }
-
-  .nav a,
-  html.sidebar-collapsed .nav a {
-    width: 100% !important;
-    min-height: 46px !important;
-    justify-content: flex-start !important;
-    padding: 12px 14px !important;
-    gap: 12px !important;
-    border-radius: 16px !important;
-  }
-
-  .nav-icon,
-  html.sidebar-collapsed .nav-icon {
-    width: 34px !important;
-    height: 34px !important;
-    flex: 0 0 34px !important;
-    border-radius: 13px !important;
-  }
-
-  .sidebar-user,
-  html.sidebar-collapsed .sidebar-user {
-    width: 100% !important;
-    max-width: none !important;
-    flex: 0 0 auto !important;
-    padding: 15px !important;
-    border-radius: 22px !important;
-    margin-top: 0 !important;
-    text-align: center !important;
-  }
-
-  .sidebar-user .avatar,
-  html.sidebar-collapsed .sidebar-user .avatar {
-    width: 52px !important;
-    height: 52px !important;
-    margin: 0 auto 9px !important;
-    border-radius: 17px !important;
-  }
-
-  .logout,
-  html.sidebar-collapsed .logout {
-    width: 100% !important;
-    height: auto !important;
-    min-height: 42px !important;
-    padding: 10px 12px !important;
-    margin-top: 10px !important;
-    border-radius: 14px !important;
-  }
-
-  .logout-icon,
-  html.sidebar-collapsed .logout-icon {
-    display: none !important;
-  }
-
-  html.sidebar-collapsed .nav a:hover::after,
-  html.sidebar-collapsed .sidebar-user:hover::after,
-  html.sidebar-collapsed .logout:hover::after {
-    display: none !important;
-  }
-}
-
-@media (max-width: 520px) {
-  .sidebar,
-  html.sidebar-collapsed .sidebar {
-    width: min(300px, 90vw) !important;
-    max-width: 300px !important;
-    padding: 18px !important;
-  }
-}
-
-/* Short-screen compression for desktop drawers */
-@media (min-width: 1181px) and (max-height: 820px) {
-  .sidebar {
-    padding-top: 14px !important;
-    padding-bottom: 14px !important;
-    gap: 10px !important;
-  }
-
-  .brand {
-    padding-bottom: 12px !important;
-  }
-
-  .nav {
-    gap: 5px !important;
-  }
-
-  .nav a {
-    min-height: 40px !important;
-    padding-top: 9px !important;
-    padding-bottom: 9px !important;
-  }
-
-  .sidebar-user {
-    padding: 12px !important;
-  }
-
-  .sidebar-user .avatar {
-    width: 42px !important;
-    height: 42px !important;
-    margin-bottom: 7px !important;
-  }
-
-  .logout {
-    min-height: 38px !important;
-    padding: 8px 10px !important;
-    margin-top: 8px !important;
+  .modal-close,
+  .task-modal-close,
+  .calendar-task-modal-close,
+  .dialog-close {
+    width: 40px;
+    height: 40px;
+    flex-basis: 40px;
+    border-radius: 14px;
+    font-size: 22px;
   }
 }
