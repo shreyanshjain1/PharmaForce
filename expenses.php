@@ -421,6 +421,10 @@ if ($action === 'new' || $action === 'edit') {
     $receiptItems = array_values(array_filter($items, static fn($item) => trim((string)($item['receipt_path'] ?? '')) !== ''));
     $imageReceiptCount = count(array_filter($receiptItems, static fn($item) => expense_receipt_is_image($item['receipt_path'] ?? '')));
     $pdfReceiptCount = count(array_filter($receiptItems, static fn($item) => expense_receipt_is_pdf($item['receipt_path'] ?? '')));
+    $expenseCreatedAt = $report['created_at'] ?? null;
+    $expenseUpdatedAt = $report['updated_at'] ?? ($report['created_at'] ?? null);
+    $expenseCreatedLabel = $expenseCreatedAt ? date('M d, Y g:i A', strtotime($expenseCreatedAt)) : 'Not recorded';
+    $expenseUpdatedLabel = $expenseUpdatedAt ? date('M d, Y g:i A', strtotime($expenseUpdatedAt)) : 'Not recorded';
     ?>
     <div class="expense-shell">
         <div class="expense-toolbar no-print">
@@ -437,6 +441,39 @@ if ($action === 'new' || $action === 'edit') {
 
 
         <style>
+
+            .expense-time-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+                margin: 14px 0;
+            }
+
+            .expense-time-card {
+                padding: 14px;
+                border: 1px solid rgba(15, 118, 110, .12);
+                border-radius: 20px;
+                background:
+                    radial-gradient(circle at right top, rgba(20, 184, 166, .08), transparent 32%),
+                    #ffffff;
+            }
+
+            .expense-time-card span {
+                display: block;
+                margin-bottom: 5px;
+                color: #607872;
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: .09em;
+                font-weight: 950;
+            }
+
+            .expense-time-card strong {
+                color: #061f1c;
+                font-size: 15px;
+                line-height: 1.35;
+            }
+
             .expense-receipt-overview {
                 display: grid;
                 grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -577,20 +614,119 @@ if ($action === 'new' || $action === 'edit') {
 
             @media(max-width: 1100px) {
                 .expense-gallery-grid,
-                .expense-receipt-overview {
+    
+            .expense-time-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+                margin: 14px 0;
+            }
+
+            .expense-time-card {
+                padding: 14px;
+                border: 1px solid rgba(15, 118, 110, .12);
+                border-radius: 20px;
+                background:
+                    radial-gradient(circle at right top, rgba(20, 184, 166, .08), transparent 32%),
+                    #ffffff;
+            }
+
+            .expense-time-card span {
+                display: block;
+                margin-bottom: 5px;
+                color: #607872;
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: .09em;
+                font-weight: 950;
+            }
+
+            .expense-time-card strong {
+                color: #061f1c;
+                font-size: 15px;
+                line-height: 1.35;
+            }
+
+            .expense-receipt-overview {
                     grid-template-columns: repeat(2, minmax(0, 1fr));
                 }
             }
 
             @media(max-width: 680px) {
                 .expense-gallery-grid,
-                .expense-receipt-overview {
+    
+            .expense-time-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+                margin: 14px 0;
+            }
+
+            .expense-time-card {
+                padding: 14px;
+                border: 1px solid rgba(15, 118, 110, .12);
+                border-radius: 20px;
+                background:
+                    radial-gradient(circle at right top, rgba(20, 184, 166, .08), transparent 32%),
+                    #ffffff;
+            }
+
+            .expense-time-card span {
+                display: block;
+                margin-bottom: 5px;
+                color: #607872;
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: .09em;
+                font-weight: 950;
+            }
+
+            .expense-time-card strong {
+                color: #061f1c;
+                font-size: 15px;
+                line-height: 1.35;
+            }
+
+            .expense-receipt-overview {
                     grid-template-columns: 1fr;
                 }
             }
 
             @media print {
-                .expense-receipt-overview {
+    
+            .expense-time-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+                margin: 14px 0;
+            }
+
+            .expense-time-card {
+                padding: 14px;
+                border: 1px solid rgba(15, 118, 110, .12);
+                border-radius: 20px;
+                background:
+                    radial-gradient(circle at right top, rgba(20, 184, 166, .08), transparent 32%),
+                    #ffffff;
+            }
+
+            .expense-time-card span {
+                display: block;
+                margin-bottom: 5px;
+                color: #607872;
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: .09em;
+                font-weight: 950;
+            }
+
+            .expense-time-card strong {
+                color: #061f1c;
+                font-size: 15px;
+                line-height: 1.35;
+            }
+
+            .expense-receipt-overview {
                     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
                     gap: 8px !important;
                 }
@@ -638,7 +774,8 @@ if ($action === 'new' || $action === 'edit') {
                     <div style="text-align:right">
                         <strong>Report #<?= (int)$report['id'] ?></strong><br>
                         <span><?= e(expense_status_label($report['status'])) ?></span><br>
-                        <span>Total: <?= money_fmt($report['total_amount']) ?></span>
+                        <span>Total: <?= money_fmt($report['total_amount']) ?></span><br>
+                        <span>Updated: <?= e($expenseUpdatedLabel) ?></span>
                     </div>
                 </header>
                 <div class="expense-report-body">
@@ -646,6 +783,11 @@ if ($action === 'new' || $action === 'edit') {
                         <div class="detail"><span>Employee Name</span><strong><?= e($report['rep']) ?></strong><p class="muted"><?= e($report['rep_email']) ?></p></div>
                         <div class="detail"><span>Report Month</span><strong><?= e(date('F Y', strtotime($report['report_month']))) ?></strong></div>
                         <div class="detail"><span>Status</span><strong><?= e(expense_status_label($report['status'])) ?></strong></div>
+                    </div>
+
+                    <div class="expense-time-grid">
+                        <div class="expense-time-card"><span>Created</span><strong><?= e($expenseCreatedLabel) ?></strong></div>
+                        <div class="expense-time-card"><span>Last Updated</span><strong><?= e($expenseUpdatedLabel) ?></strong></div>
                     </div>
 
                     <section class="expense-receipt-gallery">
@@ -808,7 +950,7 @@ if ($action === 'new' || $action === 'edit') {
             <?php else: ?>
                 <div class="table-wrap">
                     <table>
-                        <thead><tr><th>Month</th><th>Employee</th><th>Title</th><th>Total</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+                        <thead><tr><th>Month</th><th>Employee</th><th>Title</th><th>Total</th><th>Status</th><th>Saved</th><th>Actions</th></tr></thead>
                         <tbody>
                         <?php foreach ($reports as $report): ?>
                             <tr>
@@ -817,7 +959,7 @@ if ($action === 'new' || $action === 'edit') {
                                 <td><?= e($report['title']) ?></td>
                                 <td><?= money_fmt($report['total_amount']) ?></td>
                                 <td><span class="badge <?= e($report['status']) ?>"><?= e(expense_status_label($report['status'])) ?></span></td>
-                                <td><?= e(date('M d, Y', strtotime($report['created_at']))) ?></td>
+                                <td><strong><?= e(date('M d, Y', strtotime($report['updated_at'] ?? $report['created_at']))) ?></strong><br><span class="muted">Created <?= e(date('M d, Y', strtotime($report['created_at']))) ?></span></td>
                                 <td><div class="actions"><a class="btn small" href="expenses.php?action=view&id=<?= (int)$report['id'] ?>">View</a><a class="btn small ghost" href="expenses.php?action=edit&id=<?= (int)$report['id'] ?>">Edit</a></div></td>
                             </tr>
                         <?php endforeach; ?>
