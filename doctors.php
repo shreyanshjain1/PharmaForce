@@ -529,7 +529,13 @@ render_header('Doctors');
     </form>
 
     <?php if (!$doctors): ?>
-        <div class="empty">No doctors found for the selected filters.</div>
+        <div class="empty doctors-empty">
+            <p class="empty-note">No doctor records match your current search. Try a wider city/place filter or add the doctor to the masterlist.</p>
+            <div class="empty-actions">
+                <?php if ($canManageDoctors): ?><a class="btn primary" href="doctors.php?new=1">Add New Doctor</a><?php endif; ?>
+                <a class="btn ghost" href="doctors.php">Reset Filters</a>
+            </div>
+        </div>
     <?php else: ?>
         <section class="doctors-grid">
             <?php foreach ($doctors as $d): ?>

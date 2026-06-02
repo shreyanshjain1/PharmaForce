@@ -102,7 +102,13 @@ render_header('Task Center');
     <form class="filters" style="grid-template-columns:1fr 1fr auto"><div class="field"><label>From</label><input class="input" type="date" name="from" value="<?= e($from) ?>"></div><div class="field"><label>To</label><input class="input" type="date" name="to" value="<?= e($to) ?>"></div><button class="btn primary">Apply</button></form>
     <br>
     <?php if(!$tasks): ?>
-      <div class="empty">No tasks found for this period.</div>
+      <div class="empty tasks-empty">
+        <p class="empty-note">No scheduled visits or tasks were found for this date range.</p>
+        <div class="empty-actions">
+          <a class="btn primary" href="tasks.php">Create Task</a>
+          <a class="btn ghost" href="tasks.php?from=<?= e(date('Y-m-d')) ?>&to=<?= e(date('Y-m-d', strtotime('+14 days'))) ?>">Next 14 Days</a>
+        </div>
+      </div>
     <?php else: ?>
       <div class="detail-list">
         <?php foreach($tasks as $t):
