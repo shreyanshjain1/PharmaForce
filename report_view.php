@@ -89,6 +89,13 @@ function attachment_file_name($path)
 $hasAttachment = $attachmentPath !== '';
 $attachmentIsImage = is_image_attachment($attachmentPath);
 
+$createdAt = $r['created_at'] ?? null;
+$updatedAt = $r['updated_at'] ?? ($r['created_at'] ?? null);
+$reviewedAt = $r['reviewed_at'] ?? ($r['approved_at'] ?? null);
+$createdLabel = report_date($createdAt);
+$updatedLabel = report_date($updatedAt);
+$reviewedLabel = $reviewedAt ? report_date($reviewedAt) : 'Not reviewed yet';
+
 render_header('Report Details');
 ?>
 
@@ -409,6 +416,40 @@ render_header('Report Details');
         align-items: end;
     }
 
+
+    .report-timeline-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: .85rem;
+        margin-top: 1rem;
+    }
+
+    .report-time-chip {
+        padding: .95rem;
+        border: 1px solid rgba(15, 118, 110, 0.12);
+        border-radius: 18px;
+        background:
+            radial-gradient(circle at right top, rgba(20, 184, 166, .08), transparent 32%),
+            #ffffff;
+    }
+
+    .report-time-chip span {
+        display: block;
+        margin-bottom: .35rem;
+        color: #64748b;
+        font-size: .72rem;
+        font-weight: 900;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+    }
+
+    .report-time-chip strong {
+        display: block;
+        color: #0f172a;
+        font-size: .94rem;
+        line-height: 1.35;
+    }
+
     @media (max-width: 1080px) {
         .report-media-layout {
             grid-template-columns: 1fr;
@@ -427,6 +468,7 @@ render_header('Report Details');
 
         .report-grid-2,
         .report-grid-3,
+        .report-timeline-grid,
         .manager-review-grid {
             grid-template-columns: 1fr;
         }
@@ -519,7 +561,8 @@ render_header('Report Details');
         }
 
         .report-grid-2,
-        .report-grid-3 {
+        .report-grid-3,
+        .report-timeline-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
             gap: 7px !important;
         }
@@ -610,7 +653,8 @@ render_header('Report Details');
                 <div class="report-meta">
                     <strong>Report #<?= (int)$r['id'] ?></strong>
                     <p>Status: <?= e(status_label($r['status'])) ?></p>
-                    <p>Created: <?= e(report_date($r['created_at'])) ?></p>
+                    <p>Created: <?= e($createdLabel) ?></p>
+                    <p>Last Updated: <?= e($updatedLabel) ?></p>
                 </div>
             </header>
 
@@ -673,6 +717,21 @@ render_header('Report Details');
                                     <p><?= nl2br(e($r['manager_comment'])) ?></p>
                                 </div>
                             <?php endif; ?>
+                        </div>
+
+                        <div class="report-timeline-grid">
+                            <div class="report-time-chip">
+                                <span>Created</span>
+                                <strong><?= e($createdLabel) ?></strong>
+                            </div>
+                            <div class="report-time-chip">
+                                <span>Last Updated</span>
+                                <strong><?= e($updatedLabel) ?></strong>
+                            </div>
+                            <div class="report-time-chip">
+                                <span>Manager Review</span>
+                                <strong><?= e($reviewedLabel) ?></strong>
+                            </div>
                         </div>
                     </div>
                 </section>
