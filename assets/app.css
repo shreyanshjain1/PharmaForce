@@ -1608,3 +1608,257 @@ html.sidebar-collapsed .logout {
     padding: 18px !important;
   }
 }
+
+/* Sidebar/tablet final polish */
+body.sidebar-backdrop-active {
+  overflow: hidden !important;
+  touch-action: none;
+}
+
+body.sidebar-backdrop-active::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 35, 31, .44);
+  backdrop-filter: blur(5px);
+  z-index: 70;
+}
+
+/* Desktop sidebar: fixed height, scrollable nav, visible user card */
+@media (min-width: 1181px) {
+  .sidebar {
+    height: 100vh !important;
+    height: 100dvh !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .brand {
+    flex: 0 0 auto !important;
+  }
+
+  .nav {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-right: 5px !important;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,.35) transparent;
+  }
+
+  .nav::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .nav::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .nav::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,.30);
+    border-radius: 999px;
+  }
+
+  .nav::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,.46);
+  }
+
+  .sidebar-user {
+    flex: 0 0 auto !important;
+    margin-top: 0 !important;
+  }
+}
+
+/* Tablet/mobile drawer: never becomes huge, never keeps collapsed desktop shape */
+@media (max-width: 1180px) {
+  .app-shell,
+  html.sidebar-collapsed .app-shell {
+    display: block !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .main,
+  html.sidebar-collapsed .main {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .sidebar,
+  html.sidebar-collapsed .sidebar {
+    position: fixed !important;
+    inset: 0 auto 0 0 !important;
+    width: min(320px, 88vw) !important;
+    max-width: 320px !important;
+    min-width: 0 !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    padding: 20px !important;
+    z-index: 80 !important;
+    transform: translateX(-105%) !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+    box-shadow: 22px 0 60px rgba(6, 59, 53, .30) !important;
+  }
+
+  .sidebar.open,
+  html.sidebar-collapsed .sidebar.open {
+    transform: translateX(0) !important;
+  }
+
+  .brand,
+  html.sidebar-collapsed .brand {
+    width: 100% !important;
+    flex: 0 0 auto !important;
+    justify-content: flex-start !important;
+  }
+
+  .brand-copy,
+  html.sidebar-collapsed .brand-copy,
+  .nav-label,
+  html.sidebar-collapsed .nav-label,
+  .sidebar-user-copy,
+  html.sidebar-collapsed .sidebar-user-copy,
+  .logout-label,
+  html.sidebar-collapsed .logout-label {
+    opacity: 1 !important;
+    width: auto !important;
+    max-width: none !important;
+    overflow: visible !important;
+    transform: none !important;
+    pointer-events: auto !important;
+  }
+
+  .brand-mark,
+  html.sidebar-collapsed .brand-mark {
+    width: 52px !important;
+    height: 52px !important;
+    flex: 0 0 52px !important;
+  }
+
+  .sidebar-collapse-btn,
+  html.sidebar-collapsed .sidebar-collapse-btn {
+    display: none !important;
+  }
+
+  .nav,
+  html.sidebar-collapsed .nav {
+    width: 100% !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-right: 4px !important;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,.32) transparent;
+  }
+
+  .nav a,
+  html.sidebar-collapsed .nav a {
+    width: 100% !important;
+    min-height: 46px !important;
+    justify-content: flex-start !important;
+    padding: 12px 14px !important;
+    gap: 12px !important;
+    border-radius: 16px !important;
+  }
+
+  .nav-icon,
+  html.sidebar-collapsed .nav-icon {
+    width: 34px !important;
+    height: 34px !important;
+    flex: 0 0 34px !important;
+    border-radius: 13px !important;
+  }
+
+  .sidebar-user,
+  html.sidebar-collapsed .sidebar-user {
+    width: 100% !important;
+    max-width: none !important;
+    flex: 0 0 auto !important;
+    padding: 15px !important;
+    border-radius: 22px !important;
+    margin-top: 0 !important;
+    text-align: center !important;
+  }
+
+  .sidebar-user .avatar,
+  html.sidebar-collapsed .sidebar-user .avatar {
+    width: 52px !important;
+    height: 52px !important;
+    margin: 0 auto 9px !important;
+    border-radius: 17px !important;
+  }
+
+  .logout,
+  html.sidebar-collapsed .logout {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 42px !important;
+    padding: 10px 12px !important;
+    margin-top: 10px !important;
+    border-radius: 14px !important;
+  }
+
+  .logout-icon,
+  html.sidebar-collapsed .logout-icon {
+    display: none !important;
+  }
+
+  html.sidebar-collapsed .nav a:hover::after,
+  html.sidebar-collapsed .sidebar-user:hover::after,
+  html.sidebar-collapsed .logout:hover::after {
+    display: none !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .sidebar,
+  html.sidebar-collapsed .sidebar {
+    width: min(300px, 90vw) !important;
+    max-width: 300px !important;
+    padding: 18px !important;
+  }
+}
+
+/* Short-screen compression for desktop drawers */
+@media (min-width: 1181px) and (max-height: 820px) {
+  .sidebar {
+    padding-top: 14px !important;
+    padding-bottom: 14px !important;
+    gap: 10px !important;
+  }
+
+  .brand {
+    padding-bottom: 12px !important;
+  }
+
+  .nav {
+    gap: 5px !important;
+  }
+
+  .nav a {
+    min-height: 40px !important;
+    padding-top: 9px !important;
+    padding-bottom: 9px !important;
+  }
+
+  .sidebar-user {
+    padding: 12px !important;
+  }
+
+  .sidebar-user .avatar {
+    width: 42px !important;
+    height: 42px !important;
+    margin-bottom: 7px !important;
+  }
+
+  .logout {
+    min-height: 38px !important;
+    padding: 8px 10px !important;
+    margin-top: 8px !important;
+  }
+}
