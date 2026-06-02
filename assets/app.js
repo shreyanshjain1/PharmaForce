@@ -1,17 +1,7 @@
-// Sidebar safety sync for tablet/mobile drawer.
-(function () {
-  const sidebar = document.getElementById('sidebar');
-  if (!sidebar) return;
-
-  function syncSidebarBackdrop() {
-    document.body.classList.toggle('sidebar-backdrop-active', window.innerWidth <= 1180 && sidebar.classList.contains('open'));
-  }
-
-  const observer = new MutationObserver(syncSidebarBackdrop);
-  observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
-  window.addEventListener('resize', syncSidebarBackdrop);
-  syncSidebarBackdrop();
-})();
+document.addEventListener('click', (event) => {
+  const toggle = event.target.closest('[data-toggle-sidebar]');
+  if (toggle) document.getElementById('sidebar')?.classList.toggle('open');
+});
 
 const doctorSelect = document.querySelector('[data-doctor-select]');
 if (doctorSelect && window.DOCTORS) {
@@ -292,3 +282,62 @@ document.addEventListener('click', (event) => {
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') closeTaskModal();
 });
+
+// Global modal scroll + tap safety.
+(function () {
+  const modalSelectors = [
+    '.modal-backdrop',
+    '.modal-overlay',
+    '.task-modal-overlay',
+    '.calendar-task-modal-overlay',
+    '.dialog-backdrop'
+  ];
+
+  function visibleModals() {
+    return modalSelectors
+      .flatMap((selector) => Array.from(document.querySelectorAll(selector)))
+      .filter((modal) => !modal.hidden && getComputedStyle(modal).display !== 'none');
+  }
+
+  function syncModalOpenState() {
+    document.body.classList.toggle('modal-open', visibleModals().length > 0);
+  }
+
+  function closeModal(modal) {
+    if (!modal) return;
+    modal.hidden = true;
+    modal.classList.remove('is-open', 'open');
+    syncModalOpenState();
+  }
+
+  document.addEventListener('click', function (event) {
+    const closeButton = event.target.closest('[data-close-modal], [data-modal-close], .dialog-close, .calendar-task-modal-close, .task-modal-close');
+    if (closeButton) {
+      const modal = closeButton.closest(modalSelectors.join(','));
+      if (modal) closeModal(modal);
+      return;
+    }
+
+    const modal = event.target.closest(modalSelectors.join(','));
+    if (modal && event.target === modal) {
+      closeModal(modal);
+    }
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key !== 'Escape') return;
+    const modals = visibleModals();
+    if (modals.length) closeModal(modals[modals.length - 1]);
+  });
+
+  const observer = new MutationObserver(syncModalOpenState);
+  modalSelectors.forEach((selector) => {
+    document.querySelectorAll(selector).forEach((modal) => {
+      observer.observe(modal, { attributes: true, attributeFilter: ['hidden', 'class', 'style'] });
+    });
+  });
+
+  window.addEventListener('load', syncModalOpenState);
+  syncModalOpenState();
+})();
+
