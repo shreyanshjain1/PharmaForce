@@ -96,6 +96,35 @@ $createdLabel = report_date($createdAt);
 $updatedLabel = report_date($updatedAt);
 $reviewedLabel = $reviewedAt ? report_date($reviewedAt) : 'Not reviewed yet';
 
+$followupDoctorId = (int)($r['doctor_id'] ?? 0);
+if ($followupDoctorId <= 0) {
+    try {
+        $doctorLookupSql = "SELECT id FROM doctors_masterlist WHERE ";
+        $doctorLookupParams = [];
+        $doctorConditions = [];
+
+        if (trim((string)($r['doctor_email'] ?? '')) !== '' && column_exists($pdo, 'doctors_masterlist', 'email')) {
+            $doctorConditions[] = "email = ?";
+            $doctorLookupParams[] = trim((string)$r['doctor_email']);
+        }
+
+        if (trim((string)($r['doctor_name'] ?? '')) !== '') {
+            $doctorConditions[] = "dr_name = ?";
+            $doctorLookupParams[] = trim((string)$r['doctor_name']);
+        }
+
+        if ($doctorConditions) {
+            $doctorLookupSql .= implode(' OR ', $doctorConditions) . " ORDER BY id DESC LIMIT 1";
+            $doctorStmt = $pdo->prepare($doctorLookupSql);
+            $doctorStmt->execute($doctorLookupParams);
+            $followupDoctorId = (int)$doctorStmt->fetchColumn();
+        }
+    } catch (Throwable $e) {
+        $followupDoctorId = 0;
+    }
+}
+$followupBaseUrl = 'tasks.php?followup=1&report=' . (int)$r['id'] . ($followupDoctorId > 0 ? '&doctor=' . $followupDoctorId : '');
+
 render_header('Report Details');
 ?>
 
@@ -635,6 +664,7 @@ render_header('Report Details');
         <div class="report-actions">
             <a class="btn ghost" href="reports.php">Back</a>
             <a class="btn ghost" href="report_form.php?id=<?= (int)$r['id'] ?>">Edit</a>
+            <a class="btn ghost" href="<?= e($followupBaseUrl . '&days=7') ?>">Follow Up</a>
             <button type="button" class="btn primary print-btn" onclick="window.print()">Export to PDF / Print</button>
         </div>
     </div>
@@ -760,6 +790,34 @@ render_header('Report Details');
                                 <span>Hospital / Clinic</span>
                                 <strong><?= e(report_value($r['hospital_name'])) ?></strong>
                             </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="report-section no-print">
+                    <div class="report-section-head">
+                        <div>
+                            <span class="eyebrow">Next Action</span>
+                            <h3>Create Follow-Up Task</h3>
+                        </div>
+                    </div>
+                    <div class="report-section-content">
+                        <div class="report-grid-3">
+                            <a class="report-field" href="<?= e($followupBaseUrl . '&days=7') ?>">
+                                <span>7 Days</span>
+                                <strong>Schedule follow-up</strong>
+                                <p>Creates a task with this doctor and report context.</p>
+                            </a>
+                            <a class="report-field" href="<?= e($followupBaseUrl . '&days=14') ?>">
+                                <span>14 Days</span>
+                                <strong>Schedule follow-up</strong>
+                                <p>Use for medium-term product or sample follow-up.</p>
+                            </a>
+                            <a class="report-field" href="<?= e($followupBaseUrl . '&days=30') ?>">
+                                <span>30 Days</span>
+                                <strong>Schedule follow-up</strong>
+                                <p>Use for next monthly coverage cycle.</p>
+                            </a>
                         </div>
                     </div>
                 </section>
