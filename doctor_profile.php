@@ -600,6 +600,9 @@ $avatarInitials = substr($avatarInitials ?: 'DR', 0, 2);
 
         <div class="doctor-actions">
             <a class="btn ghost" href="doctors.php">Back to Doctors</a>
+            <a class="btn ghost" href="tasks.php?followup=1&doctor=<?= (int)$doctorId ?>&days=7">Follow Up in 7 Days</a>
+            <a class="btn ghost" href="tasks.php?followup=1&doctor=<?= (int)$doctorId ?>&days=14">14 Days</a>
+            <a class="btn ghost" href="tasks.php?followup=1&doctor=<?= (int)$doctorId ?>&days=30">30 Days</a>
             <a class="btn primary" href="report_form.php?doctor=<?= (int)$doctorId ?>">Create Report</a>
         </div>
     </section>
@@ -620,6 +623,20 @@ $avatarInitials = substr($avatarInitials ?: 'DR', 0, 2);
         <div class="doctor-stat-card">
             <span>Open Items</span>
             <strong><?= number_format($pendingCount + $needsChangesCount + count($tasks)) ?></strong>
+        </div>
+    </section>
+
+    <section class="doctor-profile-panel">
+        <div class="doctor-profile-panel-head">
+            <div>
+                <span class="eyebrow">Follow-Up Workflow</span>
+                <h3>Schedule next doctor visit</h3>
+            </div>
+        </div>
+        <div class="doctor-card-actions">
+            <a class="btn primary" href="tasks.php?followup=1&doctor=<?= (int)$doctorId ?>&days=7">Create 7-Day Follow-Up</a>
+            <a class="btn ghost" href="tasks.php?followup=1&doctor=<?= (int)$doctorId ?>&days=14">Create 14-Day Follow-Up</a>
+            <a class="btn ghost" href="tasks.php?followup=1&doctor=<?= (int)$doctorId ?>&days=30">Create 30-Day Follow-Up</a>
         </div>
     </section>
 

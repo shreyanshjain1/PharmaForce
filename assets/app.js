@@ -284,136 +284,39 @@ document.addEventListener('keydown', (event) => {
 });
 
 
-// Global modal scroll + tap safety.
+// Task Center follow-up prefill support.
 (function () {
-  const modalSelectors = [
-    '.modal-backdrop',
-    '.modal-overlay',
-    '.task-modal-overlay',
-    '.calendar-task-modal-overlay',
-    '.dialog-backdrop'
-  ];
+  const citySelect = document.querySelector('[data-task-city]');
+  const doctorSelect = document.querySelector('[data-task-doctor]');
+  const hospitalInput = document.querySelector('[data-task-hospital]');
 
-  function visibleModals() {
-    return modalSelectors
-      .flatMap((selector) => Array.from(document.querySelectorAll(selector)))
-      .filter((modal) => !modal.hidden && getComputedStyle(modal).display !== 'none');
-  }
+  if (!citySelect || !doctorSelect || !window.TASK_PREFILL_DOCTOR_ID) return;
 
-  function syncModalOpenState() {
-    document.body.classList.toggle('modal-open', visibleModals().length > 0 || document.querySelector('.confirm-backdrop.is-open'));
-  }
+  function applyPrefill() {
+    const prefillDoctorId = String(window.TASK_PREFILL_DOCTOR_ID || '');
+    if (!prefillDoctorId) return;
 
-  function closeModal(modal) {
-    if (!modal) return;
-    modal.hidden = true;
-    modal.classList.remove('is-open', 'open');
-    syncModalOpenState();
-  }
-
-  document.addEventListener('click', function (event) {
-    const closeButton = event.target.closest('[data-close-modal], [data-modal-close], .dialog-close, .calendar-task-modal-close, .task-modal-close');
-    if (closeButton) {
-      const modal = closeButton.closest(modalSelectors.join(','));
-      if (modal) closeModal(modal);
-      return;
+    if (window.TASK_PREFILL_CITY && citySelect.value !== window.TASK_PREFILL_CITY) {
+      citySelect.value = window.TASK_PREFILL_CITY;
+      citySelect.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
-    const modal = event.target.closest(modalSelectors.join(','));
-    if (modal && event.target === modal) {
-      closeModal(modal);
+    doctorSelect.disabled = false;
+
+    const option = Array.from(doctorSelect.options).find((item) => String(item.value) === prefillDoctorId);
+    if (option) {
+      option.hidden = false;
+      doctorSelect.value = prefillDoctorId;
+
+      if (hospitalInput && !hospitalInput.value && option.dataset.hospital) {
+        hospitalInput.value = option.dataset.hospital;
+      }
+
+      doctorSelect.dispatchEvent(new Event('change', { bubbles: true }));
     }
-  });
+  }
 
-  document.addEventListener('keydown', function (event) {
-    if (event.key !== 'Escape') return;
-    const modals = visibleModals();
-    if (modals.length) closeModal(modals[modals.length - 1]);
+  window.addEventListener('load', function () {
+    setTimeout(applyPrefill, 80);
   });
-
-  const observer = new MutationObserver(syncModalOpenState);
-  modalSelectors.forEach((selector) => {
-    document.querySelectorAll(selector).forEach((modal) => {
-      observer.observe(modal, { attributes: true, attributeFilter: ['hidden', 'class', 'style'] });
-    });
-  });
-
-  window.addEventListener('load', syncModalOpenState);
-  syncModalOpenState();
 })();
-
-// Bulletproof confirmation prompts for important actions.
-// Uses the browser-native confirm dialog so it cannot fail because of modal CSS/z-index issues.
-(function () {
-  function messageFor(target) {
-    return target.getAttribute('data-confirm') || 'Are you sure you want to continue?';
-  }
-
-  function allowOnce(target) {
-    target.setAttribute('data-confirm-bypass', '1');
-    setTimeout(function () {
-      target.removeAttribute('data-confirm-bypass');
-    }, 1000);
-  }
-
-  function submitForm(target) {
-    const form = target.form || target.closest('form');
-    if (!form) return false;
-
-    if (target.name) {
-      form.querySelectorAll('input[data-confirm-temp="1"]').forEach(function (input) {
-        input.remove();
-      });
-
-      const hidden = document.createElement('input');
-      hidden.type = 'hidden';
-      hidden.name = target.name;
-      hidden.value = target.value || '';
-      hidden.setAttribute('data-confirm-temp', '1');
-      form.appendChild(hidden);
-    }
-
-    form.setAttribute('data-confirm-bypass', '1');
-
-    if (form.requestSubmit) {
-      form.requestSubmit();
-    } else {
-      form.submit();
-    }
-
-    setTimeout(function () {
-      form.removeAttribute('data-confirm-bypass');
-    }, 1000);
-
-    return true;
-  }
-
-  document.addEventListener('click', function (event) {
-    const target = event.target.closest('[data-confirm]');
-    if (!target || target.disabled || target.getAttribute('data-confirm-bypass') === '1') return;
-
-    const form = target.form || target.closest('form');
-    if (form && form.getAttribute('data-confirm-bypass') === '1') return;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    const confirmed = window.confirm(messageFor(target));
-    if (!confirmed) return;
-
-    const link = target.closest('a[href]');
-    if (link) {
-      window.location.href = link.href;
-      return;
-    }
-
-    if (form) {
-      submitForm(target);
-      return;
-    }
-
-    allowOnce(target);
-    target.click();
-  }, true);
-})();
-
