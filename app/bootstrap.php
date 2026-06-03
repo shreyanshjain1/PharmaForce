@@ -169,8 +169,105 @@ function save_base64_image(?string $dataUrl, string $dir, string $prefix = 'sign
 }
 
 function render_header(string $title, string $eyebrow = 'Pharmastar CRM'): void {
+    global $pdo;
+
     $u = current_user();
     $flashes = flashes();
+
+    $navBadges = [
+        'my_work' => 0,
+        'reports' => 0,
+        'tasks' => 0,
+        'expenses' => 0,
+        'approvals' => 0,
+    ];
+
+    if ($u && isset($pdo) && $pdo instanceof PDO) {
+        $safeCount = static function (string $sql, array $params = []) use ($pdo): int {
+            try {
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($params);
+                return (int)$stmt->fetchColumn();
+            } catch (Throwable $e) {
+                return 0;
+            }
+        };
+
+        $role = (string)($u['role'] ?? 'employee');
+        $userId = (int)($u['id'] ?? 0);
+        $isManagerRole = in_array($role, ['manager', 'district_manager'], true);
+
+        try {
+            if (table_columns($pdo, 'reports')) {
+                if ($isManagerRole) {
+                    $navBadges['reports'] = $safeCount("SELECT COUNT(*) FROM reports WHERE status IN ('pending','needs_changes')");
+                } else {
+                    $navBadges['reports'] = $safeCount("SELECT COUNT(*) FROM reports WHERE user_id = ? AND status IN ('pending','needs_changes')", [$userId]);
+                }
+            }
+        } catch (Throwable $e) {}
+
+        try {
+            if (table_columns($pdo, 'expense_reports')) {
+                if ($isManagerRole) {
+                    $navBadges['expenses'] = $safeCount("SELECT COUNT(*) FROM expense_reports WHERE status IN ('pending','needs_changes')");
+                } else {
+                    $navBadges['expenses'] = $safeCount("SELECT COUNT(*) FROM expense_reports WHERE user_id = ? AND status IN ('pending','needs_changes')", [$userId]);
+                }
+            }
+        } catch (Throwable $e) {}
+
+        try {
+            if (table_columns($pdo, 'events')) {
+                $eventCols = table_columns($pdo, 'events');
+                $eventStartColumn = in_array('start', $eventCols, true)
+                    ? 'start'
+                    : (in_array('start_datetime', $eventCols, true)
+                        ? 'start_datetime'
+                        : (in_array('visit_datetime', $eventCols, true) ? 'visit_datetime' : 'created_at'));
+
+                $ownerSql = 'user_id = ?';
+                $ownerParams = [$userId];
+
+                if ($isManagerRole) {
+                    $ownerSql = '1=1';
+                    $ownerParams = [];
+                } elseif (in_array('assigned_user_id', $eventCols, true)) {
+                    $ownerSql = '(assigned_user_id = ? OR user_id = ?)';
+                    $ownerParams = [$userId, $userId];
+                }
+
+                $statusSql = in_array('status', $eventCols, true)
+                    ? " AND (status IS NULL OR status NOT IN ('done','completed','cancelled'))"
+                    : '';
+
+                $navBadges['tasks'] = $safeCount(
+                    "SELECT COUNT(*) FROM events WHERE {$ownerSql} AND DATE(`{$eventStartColumn}`) = CURDATE() {$statusSql}",
+                    $ownerParams
+                );
+            }
+        } catch (Throwable $e) {}
+
+        try {
+            if ($isManagerRole && table_columns($pdo, 'approval_records')) {
+                if ($role === 'manager') {
+                    $navBadges['approvals'] = $safeCount("SELECT COUNT(*) FROM approval_records WHERE manager_status = 'pending' AND final_status != 'approved'");
+                } else {
+                    $navBadges['approvals'] = $safeCount("SELECT COUNT(*) FROM approval_records WHERE district_status = 'pending' AND final_status != 'approved'");
+                }
+            } elseif ($isManagerRole) {
+                $navBadges['approvals'] = $navBadges['reports'] + $navBadges['expenses'];
+            }
+        } catch (Throwable $e) {}
+
+        $navBadges['my_work'] = $isManagerRole
+            ? ($navBadges['approvals'] + $navBadges['tasks'])
+            : ($navBadges['reports'] + $navBadges['expenses'] + $navBadges['tasks']);
+
+        foreach ($navBadges as $key => $value) {
+            $navBadges[$key] = max(0, min(99, (int)$value));
+        }
+    }
     ?>
 <!doctype html>
 <html lang="en">
@@ -188,7 +285,7 @@ function render_header(string $title, string $eyebrow = 'Pharmastar CRM'): void 
       }
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="assets/app.css?v=20260526-confirmations">
+  <link rel="stylesheet" href="assets/app.css?v=20260526-sidebar-final">
 </head>
 <body>
 <div class="app-shell">
@@ -202,12 +299,12 @@ function render_header(string $title, string $eyebrow = 'Pharmastar CRM'): void 
     </div>
     <nav class="nav">
       <a class="<?= active_nav('index.php') ?>" href="index.php"><span class="nav-icon">D</span><span class="nav-label">Dashboard</span></a>
-      <a class="<?= active_nav('my_work.php') ?>" href="my_work.php"><span class="nav-icon">W</span><span class="nav-label">My Work</span></a>
-      <a class="<?= active_nav('reports.php') ?>" href="reports.php"><span class="nav-icon">R</span><span class="nav-label">Reports</span></a>
+      <a class="<?= active_nav('my_work.php') ?>" href="my_work.php"><span class="nav-icon">W</span><span class="nav-label">My Work</span><?php if (($navBadges['my_work'] ?? 0) > 0): ?><span class="nav-badge"><?= (int)$navBadges['my_work'] ?></span><?php endif; ?></a>
+      <a class="<?= active_nav('reports.php') ?>" href="reports.php"><span class="nav-icon">R</span><span class="nav-label">Reports</span><?php if (($navBadges['reports'] ?? 0) > 0): ?><span class="nav-badge"><?= (int)$navBadges['reports'] ?></span><?php endif; ?></a>
       <a class="<?= active_nav('report_form.php') ?>" href="report_form.php"><span class="nav-icon">N</span><span class="nav-label">New Report</span></a>
-      <a class="<?= active_nav('tasks.php') ?>" href="tasks.php"><span class="nav-icon">T</span><span class="nav-label">Tasks</span></a>
-      <a class="<?= active_nav('expenses.php') ?>" href="expenses.php"><span class="nav-icon">E</span><span class="nav-label">Expenses</span></a>
-      <?php if (is_manager()): ?><a class="<?= active_nav('approvals.php') ?>" href="approvals.php"><span class="nav-icon">A</span><span class="nav-label">Approvals</span></a><?php endif; ?>
+      <a class="<?= active_nav('tasks.php') ?>" href="tasks.php"><span class="nav-icon">T</span><span class="nav-label">Tasks</span><?php if (($navBadges['tasks'] ?? 0) > 0): ?><span class="nav-badge"><?= (int)$navBadges['tasks'] ?></span><?php endif; ?></a>
+      <a class="<?= active_nav('expenses.php') ?>" href="expenses.php"><span class="nav-icon">E</span><span class="nav-label">Expenses</span><?php if (($navBadges['expenses'] ?? 0) > 0): ?><span class="nav-badge"><?= (int)$navBadges['expenses'] ?></span><?php endif; ?></a>
+      <?php if (is_manager()): ?><a class="<?= active_nav('approvals.php') ?>" href="approvals.php"><span class="nav-icon">A</span><span class="nav-label">Approvals</span><?php if (($navBadges['approvals'] ?? 0) > 0): ?><span class="nav-badge urgent"><?= (int)$navBadges['approvals'] ?></span><?php endif; ?></a><?php endif; ?>
       <a class="<?= active_nav('analytics.php') ?>" href="analytics.php"><span class="nav-icon">K</span><span class="nav-label">Analytics</span></a>
       <a class="<?= active_nav('doctors.php') ?>" href="doctors.php"><span class="nav-icon">Dr</span><span class="nav-label">Doctors</span></a>
       <?php if (is_manager()): ?><a class="<?= active_nav('users.php') ?>" href="users.php"><span class="nav-icon">U</span><span class="nav-label">Users</span></a><?php endif; ?>
@@ -216,7 +313,7 @@ function render_header(string $title, string $eyebrow = 'Pharmastar CRM'): void 
     <div class="sidebar-user">
       <div class="avatar"><?= e(strtoupper(substr($u['name'] ?? 'U', 0, 1))) ?></div>
       <div class="sidebar-user-copy"><strong><?= e($u['name'] ?? '') ?></strong><span><?= e(role_label($u['role'] ?? 'employee')) ?></span></div>
-      <a href="logout.php" class="logout" data-confirm="Are you sure you want to log out?" data-confirm-title="Confirm Logout" data-confirm-ok="Logout"><span class="logout-label">Logout</span><span class="logout-icon">↪</span></a>
+      <a href="logout.php" class="logout" data-confirm="Are you sure you want to log out?"><span class="logout-label">Logout</span><span class="logout-icon">↪</span></a>
     </div>
   </aside>
   <main class="main">
@@ -237,27 +334,52 @@ function render_footer(): void { ?>
 <script>
 (function () {
   const root = document.documentElement;
-  const toggle = document.querySelector('[data-collapse-sidebar]');
+  const body = document.body;
   const sidebar = document.getElementById('sidebar');
+  const collapseToggle = document.querySelector('[data-collapse-sidebar]');
+  const mobileToggleSelector = '[data-toggle-sidebar]';
+  const mobileBreakpoint = 1180;
 
-  function applyState(collapsed) {
+  function isMobileSidebarMode() {
+    return window.innerWidth <= mobileBreakpoint;
+  }
+
+  function applyCollapsedState(collapsed) {
     root.classList.toggle('sidebar-collapsed', collapsed);
-    if (toggle) {
-      toggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
-      toggle.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+    if (collapseToggle) {
+      collapseToggle.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+      collapseToggle.setAttribute('title', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
     }
   }
 
-  try {
-    applyState(localStorage.getItem('pharmaforce_sidebar_collapsed') === '1');
-  } catch (e) {
-    applyState(false);
+  function openMobileSidebar() {
+    if (!sidebar) return;
+    sidebar.classList.add('open');
+    body.classList.add('sidebar-backdrop-active');
   }
 
-  if (toggle) {
-    toggle.addEventListener('click', function () {
+  function closeMobileSidebar() {
+    if (!sidebar) return;
+    sidebar.classList.remove('open');
+    body.classList.remove('sidebar-backdrop-active');
+  }
+
+  function toggleMobileSidebar() {
+    if (!sidebar) return;
+    sidebar.classList.contains('open') ? closeMobileSidebar() : openMobileSidebar();
+  }
+
+  try {
+    applyCollapsedState(localStorage.getItem('pharmaforce_sidebar_collapsed') === '1');
+  } catch (e) {
+    applyCollapsedState(false);
+  }
+
+  if (collapseToggle) {
+    collapseToggle.addEventListener('click', function () {
+      if (isMobileSidebarMode()) return;
       const collapsed = !root.classList.contains('sidebar-collapsed');
-      applyState(collapsed);
+      applyCollapsedState(collapsed);
       try {
         localStorage.setItem('pharmaforce_sidebar_collapsed', collapsed ? '1' : '0');
       } catch (e) {}
@@ -265,16 +387,36 @@ function render_footer(): void { ?>
   }
 
   document.addEventListener('click', function (event) {
-    if (window.innerWidth > 1180) return;
-    const mobileToggle = event.target.closest('[data-toggle-sidebar]');
-    const clickedInsideSidebar = event.target.closest('#sidebar');
-    if (!mobileToggle && !clickedInsideSidebar && sidebar) {
-      sidebar.classList.remove('open');
+    const mobileToggle = event.target.closest(mobileToggleSelector);
+
+    if (mobileToggle) {
+      if (isMobileSidebarMode()) {
+        event.preventDefault();
+        toggleMobileSidebar();
+      }
+      return;
     }
+
+    if (!isMobileSidebarMode() || !sidebar || !sidebar.classList.contains('open')) return;
+
+    const clickedInsideSidebar = event.target.closest('#sidebar');
+    const clickedNavLink = event.target.closest('#sidebar a');
+
+    if (clickedNavLink || !clickedInsideSidebar) {
+      closeMobileSidebar();
+    }
+  }, true);
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && isMobileSidebarMode()) closeMobileSidebar();
+  });
+
+  window.addEventListener('resize', function () {
+    if (!isMobileSidebarMode()) closeMobileSidebar();
   });
 })();
 </script>
-<script src="assets/app.js?v=20260526-confirmations"></script>
+<script src="assets/app.js?v=20260526-sidebar-final"></script>
 </body>
 </html>
 <?php }
