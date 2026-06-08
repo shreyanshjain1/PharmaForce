@@ -86,8 +86,37 @@ function attachment_file_name($path)
     return $file !== '' ? $file : 'Attachment';
 }
 
+function report_geo_status_label(?string $status): string
+{
+    $status = trim((string)$status);
+    return [
+        'captured' => 'Location Captured',
+        'denied' => 'Permission Denied',
+        'unavailable' => 'Unavailable',
+        'unsupported' => 'Unsupported',
+        'error' => 'Location Error',
+    ][$status] ?? 'Not Captured';
+}
+
+function report_geo_map_url($lat, $lng): string
+{
+    $lat = trim((string)$lat);
+    $lng = trim((string)$lng);
+    return 'https://www.google.com/maps?q=' . rawurlencode($lat . ',' . $lng);
+}
+
+
 $hasAttachment = $attachmentPath !== '';
 $attachmentIsImage = is_image_attachment($attachmentPath);
+$signatureLatitude = trim((string)($r['signature_latitude'] ?? ''));
+$signatureLongitude = trim((string)($r['signature_longitude'] ?? ''));
+$signatureAccuracy = trim((string)($r['signature_accuracy'] ?? ''));
+$signatureCapturedAt = trim((string)($r['signature_captured_at'] ?? ''));
+$signatureLocationStatus = trim((string)($r['signature_location_status'] ?? ''));
+$hasSignatureLocation = $signatureLatitude !== '' && $signatureLongitude !== '';
+$signatureLocationLabel = $hasSignatureLocation ? 'Location Captured' : report_geo_status_label($signatureLocationStatus);
+$signatureLocationMap = $hasSignatureLocation ? report_geo_map_url($signatureLatitude, $signatureLongitude) : '';
+
 
 $createdAt = $r['created_at'] ?? null;
 $updatedAt = $r['updated_at'] ?? ($r['created_at'] ?? null);
@@ -95,35 +124,6 @@ $reviewedAt = $r['reviewed_at'] ?? ($r['approved_at'] ?? null);
 $createdLabel = report_date($createdAt);
 $updatedLabel = report_date($updatedAt);
 $reviewedLabel = $reviewedAt ? report_date($reviewedAt) : 'Not reviewed yet';
-
-$followupDoctorId = (int)($r['doctor_id'] ?? 0);
-if ($followupDoctorId <= 0) {
-    try {
-        $doctorLookupSql = "SELECT id FROM doctors_masterlist WHERE ";
-        $doctorLookupParams = [];
-        $doctorConditions = [];
-
-        if (trim((string)($r['doctor_email'] ?? '')) !== '' && column_exists($pdo, 'doctors_masterlist', 'email')) {
-            $doctorConditions[] = "email = ?";
-            $doctorLookupParams[] = trim((string)$r['doctor_email']);
-        }
-
-        if (trim((string)($r['doctor_name'] ?? '')) !== '') {
-            $doctorConditions[] = "dr_name = ?";
-            $doctorLookupParams[] = trim((string)$r['doctor_name']);
-        }
-
-        if ($doctorConditions) {
-            $doctorLookupSql .= implode(' OR ', $doctorConditions) . " ORDER BY id DESC LIMIT 1";
-            $doctorStmt = $pdo->prepare($doctorLookupSql);
-            $doctorStmt->execute($doctorLookupParams);
-            $followupDoctorId = (int)$doctorStmt->fetchColumn();
-        }
-    } catch (Throwable $e) {
-        $followupDoctorId = 0;
-    }
-}
-$followupBaseUrl = 'tasks.php?followup=1&report=' . (int)$r['id'] . ($followupDoctorId > 0 ? '&doctor=' . $followupDoctorId : '');
 
 render_header('Report Details');
 ?>
@@ -426,6 +426,15 @@ render_header('Report Details');
         font-weight: 900;
     }
 
+
+    .report-geotag-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.85rem}
+    .report-geotag-card{padding:.95rem;border:1px solid rgba(15,118,110,.12);border-radius:18px;background:#fbfffd}
+    .report-geotag-card span{display:block;margin-bottom:.4rem;font-size:.72rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#64748b}
+    .report-geotag-card strong{display:block;color:#0f172a;font-size:.94rem;line-height:1.4;overflow-wrap:anywhere}
+    .report-geotag-status{display:inline-flex;align-items:center;min-height:34px;padding:7px 11px;border-radius:999px;border:1px solid rgba(15,118,110,.16);background:#fffdf2;color:#854d0e;font-size:12px;font-weight:950}
+    .report-geotag-status.captured{background:#ecfdf5;color:#15803d;border-color:#bbf7d0}
+    .report-geotag-status.denied,.report-geotag-status.unavailable,.report-geotag-status.unsupported,.report-geotag-status.error{background:#fff1f2;color:#b91c1c;border-color:#fecdd3}
+
     .manager-review-card {
         border: 1px solid rgba(15, 118, 110, 0.16);
         border-radius: 24px;
@@ -446,7 +455,8 @@ render_header('Report Details');
     }
 
 
-    .report-timeline-grid {
+    .report-timeline-grid,
+        .report-geotag-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: .85rem;
@@ -498,6 +508,7 @@ render_header('Report Details');
         .report-grid-2,
         .report-grid-3,
         .report-timeline-grid,
+        .report-geotag-grid,
         .manager-review-grid {
             grid-template-columns: 1fr;
         }
@@ -664,7 +675,6 @@ render_header('Report Details');
         <div class="report-actions">
             <a class="btn ghost" href="reports.php">Back</a>
             <a class="btn ghost" href="report_form.php?id=<?= (int)$r['id'] ?>">Edit</a>
-            <a class="btn ghost" href="<?= e($followupBaseUrl . '&days=7') ?>">Follow Up</a>
             <button type="button" class="btn primary print-btn" onclick="window.print()">Export to PDF / Print</button>
         </div>
     </div>
@@ -794,34 +804,6 @@ render_header('Report Details');
                     </div>
                 </section>
 
-                <section class="report-section no-print">
-                    <div class="report-section-head">
-                        <div>
-                            <span class="eyebrow">Next Action</span>
-                            <h3>Create Follow-Up Task</h3>
-                        </div>
-                    </div>
-                    <div class="report-section-content">
-                        <div class="report-grid-3">
-                            <a class="report-field" href="<?= e($followupBaseUrl . '&days=7') ?>">
-                                <span>7 Days</span>
-                                <strong>Schedule follow-up</strong>
-                                <p>Creates a task with this doctor and report context.</p>
-                            </a>
-                            <a class="report-field" href="<?= e($followupBaseUrl . '&days=14') ?>">
-                                <span>14 Days</span>
-                                <strong>Schedule follow-up</strong>
-                                <p>Use for medium-term product or sample follow-up.</p>
-                            </a>
-                            <a class="report-field" href="<?= e($followupBaseUrl . '&days=30') ?>">
-                                <span>30 Days</span>
-                                <strong>Schedule follow-up</strong>
-                                <p>Use for next monthly coverage cycle.</p>
-                            </a>
-                        </div>
-                    </div>
-                </section>
-
                 <section class="report-section">
                     <div class="report-section-head">
                         <div>
@@ -909,6 +891,29 @@ render_header('Report Details');
             </div>
         </article>
     </div>
+
+    <section class="report-section">
+        <div class="report-section-head">
+            <div>
+                <span class="eyebrow">Location Proof</span>
+                <h3>Signature Geotag</h3>
+            </div>
+            <span class="report-geotag-status <?= e($hasSignatureLocation ? 'captured' : $signatureLocationStatus) ?>"><?= e($signatureLocationLabel) ?></span>
+        </div>
+        <div class="report-section-content">
+            <div class="report-geotag-grid">
+                <div class="report-geotag-card"><span>Latitude</span><strong><?= e($hasSignatureLocation ? $signatureLatitude : 'Not captured') ?></strong></div>
+                <div class="report-geotag-card"><span>Longitude</span><strong><?= e($hasSignatureLocation ? $signatureLongitude : 'Not captured') ?></strong></div>
+                <div class="report-geotag-card"><span>Accuracy</span><strong><?= e($signatureAccuracy !== '' ? round((float)$signatureAccuracy) . ' meters' : 'Not captured') ?></strong></div>
+                <div class="report-geotag-card"><span>Captured At</span><strong><?= e($signatureCapturedAt !== '' ? report_date($signatureCapturedAt) : 'Not captured') ?></strong></div>
+            </div>
+            <?php if ($hasSignatureLocation): ?>
+                <p class="no-print" style="margin:1rem 0 0"><a class="btn small ghost" target="_blank" href="<?= e($signatureLocationMap) ?>">Open Location in Google Maps</a></p>
+            <?php else: ?>
+                <p class="muted" style="margin:1rem 0 0">No signature location was captured for this report.</p>
+            <?php endif; ?>
+        </div>
+    </section>
 
     <?php if (is_manager()): ?>
         <form class="manager-review-card no-print" method="post">
