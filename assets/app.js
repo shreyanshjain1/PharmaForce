@@ -284,39 +284,101 @@ document.addEventListener('keydown', (event) => {
 });
 
 
-// Task Center follow-up prefill support.
+// Report signature geotagging.
 (function () {
-  const citySelect = document.querySelector('[data-task-city]');
-  const doctorSelect = document.querySelector('[data-task-doctor]');
-  const hospitalInput = document.querySelector('[data-task-hospital]');
+  const captureButton = document.querySelector('[data-capture-location]');
+  const statusInput = document.querySelector('[data-geo-status]');
+  const latInput = document.querySelector('[data-geo-latitude]');
+  const lngInput = document.querySelector('[data-geo-longitude]');
+  const accuracyInput = document.querySelector('[data-geo-accuracy]');
+  const capturedAtInput = document.querySelector('[data-geo-captured-at]');
+  if (!captureButton || !statusInput || !latInput || !lngInput) return;
 
-  if (!citySelect || !doctorSelect || !window.TASK_PREFILL_DOCTOR_ID) return;
+  const statusLabel = document.querySelector('[data-geo-status-label]');
+  const latLabel = document.querySelector('[data-geo-latitude-label]');
+  const lngLabel = document.querySelector('[data-geo-longitude-label]');
+  const accuracyLabel = document.querySelector('[data-geo-accuracy-label]');
+  const message = document.querySelector('[data-geo-message]');
+  const mapLink = document.querySelector('[data-geo-map-link]');
 
-  function applyPrefill() {
-    const prefillDoctorId = String(window.TASK_PREFILL_DOCTOR_ID || '');
-    if (!prefillDoctorId) return;
-
-    if (window.TASK_PREFILL_CITY && citySelect.value !== window.TASK_PREFILL_CITY) {
-      citySelect.value = window.TASK_PREFILL_CITY;
-      citySelect.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-
-    doctorSelect.disabled = false;
-
-    const option = Array.from(doctorSelect.options).find((item) => String(item.value) === prefillDoctorId);
-    if (option) {
-      option.hidden = false;
-      doctorSelect.value = prefillDoctorId;
-
-      if (hospitalInput && !hospitalInput.value && option.dataset.hospital) {
-        hospitalInput.value = option.dataset.hospital;
-      }
-
-      doctorSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  function setStatus(status, text) {
+    statusInput.value = status;
+    if (statusLabel) {
+      statusLabel.textContent = text;
+      statusLabel.className = 'location-status-pill ' + status;
     }
   }
 
-  window.addEventListener('load', function () {
-    setTimeout(applyPrefill, 80);
+  function setMessage(text) { if (message) message.textContent = text; }
+
+  function updateMapLink(lat, lng) {
+    if (!mapLink) return;
+    if (!lat || !lng) {
+      mapLink.hidden = true;
+      mapLink.href = '#';
+      return;
+    }
+    mapLink.hidden = false;
+    mapLink.href = 'https://www.google.com/maps?q=' + encodeURIComponent(lat + ',' + lng);
+  }
+
+  function updateDisplayFromInputs() {
+    const lat = latInput.value;
+    const lng = lngInput.value;
+    const accuracy = accuracyInput ? accuracyInput.value : '';
+    const status = statusInput.value;
+    if (latLabel) latLabel.textContent = lat || 'Not captured';
+    if (lngLabel) lngLabel.textContent = lng || 'Not captured';
+    if (accuracyLabel) accuracyLabel.textContent = accuracy ? Math.round(Number(accuracy)) + ' meters' : 'Not captured';
+    if (lat && lng) {
+      setStatus('captured', 'Location Captured');
+      updateMapLink(lat, lng);
+    } else if (status) {
+      const label = {denied:'Permission Denied', unavailable:'Unavailable', unsupported:'Unsupported', error:'Location Error'}[status] || 'Not Captured';
+      setStatus(status, label);
+      updateMapLink('', '');
+    } else {
+      setStatus('', 'Not Captured');
+      updateMapLink('', '');
+    }
+  }
+
+  captureButton.addEventListener('click', function () {
+    if (!navigator.geolocation) {
+      setStatus('unsupported', 'Unsupported');
+      setMessage('This browser does not support location capture.');
+      return;
+    }
+    captureButton.disabled = true;
+    captureButton.textContent = 'Capturing...';
+    setMessage('Requesting location permission. Please allow location access on this device.');
+
+    navigator.geolocation.getCurrentPosition(
+      function (position) {
+        const coords = position.coords || {};
+        const lat = Number(coords.latitude || 0).toFixed(7);
+        const lng = Number(coords.longitude || 0).toFixed(7);
+        const accuracy = coords.accuracy ? String(coords.accuracy) : '';
+        latInput.value = lat;
+        lngInput.value = lng;
+        if (accuracyInput) accuracyInput.value = accuracy;
+        if (capturedAtInput) capturedAtInput.value = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        updateDisplayFromInputs();
+        setMessage('Location captured successfully. Accuracy depends on the tablet/browser GPS signal.');
+        captureButton.textContent = 'Recapture Location';
+        captureButton.disabled = false;
+      },
+      function (error) {
+        const status = error && error.code === error.PERMISSION_DENIED ? 'denied' : (error && error.code === error.POSITION_UNAVAILABLE ? 'unavailable' : 'error');
+        setStatus(status, status === 'denied' ? 'Permission Denied' : 'Location Error');
+        setMessage(status === 'denied' ? 'Location permission was denied. The report can still be saved, but it will show no location proof.' : 'Location could not be captured. Check GPS/location services and try again.');
+        captureButton.textContent = 'Try Capture Again';
+        captureButton.disabled = false;
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
   });
+
+  updateDisplayFromInputs();
 })();
+

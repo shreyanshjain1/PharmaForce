@@ -142,6 +142,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'created_at' => date('Y-m-d H:i:s'),
     ];
 
+    $signatureLatitude = trim((string)($_POST['signature_latitude'] ?? ''));
+    $signatureLongitude = trim((string)($_POST['signature_longitude'] ?? ''));
+    $signatureAccuracy = trim((string)($_POST['signature_accuracy'] ?? ''));
+    $signatureCapturedAt = trim((string)($_POST['signature_captured_at'] ?? ''));
+    $signatureLocationStatus = trim((string)($_POST['signature_location_status'] ?? ''));
+
+    if ($signatureLocationStatus !== '') {
+        $values['signature_location_status'] = $signatureLocationStatus;
+    }
+
+    if ($signatureLatitude !== '' && $signatureLongitude !== '') {
+        $values['signature_latitude'] = $signatureLatitude;
+        $values['signature_longitude'] = $signatureLongitude;
+        $values['signature_accuracy'] = $signatureAccuracy !== '' ? $signatureAccuracy : null;
+        $values['signature_captured_at'] = $signatureCapturedAt !== '' ? str_replace('T', ' ', $signatureCapturedAt) : date('Y-m-d H:i:s');
+        $values['signature_location_status'] = 'captured';
+    } elseif (in_array($signatureLocationStatus, ['denied', 'unavailable', 'unsupported', 'error'], true)) {
+        $values['signature_location_status'] = $signatureLocationStatus;
+    }
+
     if ($signaturePath) $values['signature_path'] = $signaturePath;
     if ($attachmentPath) $values['attachment_path'] = $attachmentPath;
 
@@ -183,6 +203,23 @@ render_header($id ? 'Edit Report' : 'Create Report');
   <a class="btn ghost" href="reports.php">Back to Reports</a>
 </div>
 
+
+<style>
+.location-proof-card{margin-top:14px;padding:16px;border:1px solid rgba(15,118,110,.14);border-radius:24px;background:radial-gradient(circle at right top,rgba(20,184,166,.10),transparent 30%),linear-gradient(145deg,#ffffff,#f8fffd)}
+.location-proof-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+.location-proof-head h3{margin:3px 0 4px;color:#082f2b;letter-spacing:-.03em}
+.location-proof-head p{margin:0;color:#607872;font-weight:750;line-height:1.45}
+.location-proof-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+.location-proof-item{padding:12px;border:1px solid rgba(15,118,110,.11);border-radius:18px;background:rgba(255,255,255,.82)}
+.location-proof-item span{display:block;margin-bottom:5px;color:#607872;font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:950}
+.location-proof-item strong{color:#082f2b;font-size:13px;overflow-wrap:anywhere}
+.location-status-pill{display:inline-flex;align-items:center;min-height:34px;padding:7px 11px;border-radius:999px;border:1px solid rgba(15,118,110,.16);background:#fffdf2;color:#854d0e;font-size:12px;font-weight:950;white-space:nowrap}
+.location-status-pill.captured{background:#ecfdf5;color:#15803d;border-color:#bbf7d0}
+.location-status-pill.denied,.location-status-pill.error,.location-status-pill.unavailable,.location-status-pill.unsupported{background:#fff1f2;color:#b91c1c;border-color:#fecdd3}
+.location-proof-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+@media(max-width:760px){.location-proof-head{display:grid}.location-proof-grid{grid-template-columns:1fr}.location-proof-actions,.location-proof-actions .btn{width:100%}}
+</style>
+
 <?php if (!empty($prefill['source_note']) && !$id): ?>
   <div class="alert success"><?= e($prefill['source_note']) ?></div>
 <?php endif; ?>
@@ -190,6 +227,11 @@ render_header($id ? 'Edit Report' : 'Create Report');
 <form class="card" method="post" enctype="multipart/form-data" data-report-form>
   <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
   <input type="hidden" name="signature_data" data-signature-data>
+  <input type="hidden" name="signature_latitude" data-geo-latitude value="<?= e($report['signature_latitude'] ?? '') ?>">
+  <input type="hidden" name="signature_longitude" data-geo-longitude value="<?= e($report['signature_longitude'] ?? '') ?>">
+  <input type="hidden" name="signature_accuracy" data-geo-accuracy value="<?= e($report['signature_accuracy'] ?? '') ?>">
+  <input type="hidden" name="signature_captured_at" data-geo-captured-at value="<?= e($report['signature_captured_at'] ?? '') ?>">
+  <input type="hidden" name="signature_location_status" data-geo-status value="<?= e($report['signature_location_status'] ?? '') ?>">
 
   <div class="form-grid">
     <div class="field">
@@ -221,6 +263,27 @@ render_header($id ? 'Edit Report' : 'Create Report');
         </div>
       </div>
       <?php if (!empty($report['signature_path'])): ?><p class="muted">Existing signature is saved. Draw a new one only if you want to replace it.</p><?php endif; ?>
+
+      <div class="location-proof-card" data-location-proof>
+        <div class="location-proof-head">
+          <div>
+            <span class="eyebrow">Location Proof</span>
+            <h3>Signature geotag</h3>
+            <p>Capture the tablet location when the doctor/client signs. This helps verify where the signature was taken.</p>
+          </div>
+          <span class="location-status-pill" data-geo-status-label>Not Captured</span>
+        </div>
+        <div class="location-proof-grid">
+          <div class="location-proof-item"><span>Latitude</span><strong data-geo-latitude-label><?= e($report['signature_latitude'] ?? 'Not captured') ?></strong></div>
+          <div class="location-proof-item"><span>Longitude</span><strong data-geo-longitude-label><?= e($report['signature_longitude'] ?? 'Not captured') ?></strong></div>
+          <div class="location-proof-item"><span>Accuracy</span><strong data-geo-accuracy-label><?= !empty($report['signature_accuracy']) ? e(round((float)$report['signature_accuracy'])) . ' meters' : 'Not captured' ?></strong></div>
+        </div>
+        <div class="location-proof-actions">
+          <button class="btn small primary" type="button" data-capture-location>Capture Location</button>
+          <a class="btn small ghost" data-geo-map-link target="_blank" href="#" hidden>Open Map</a>
+        </div>
+        <p class="muted" data-geo-message style="margin:.75rem 0 0">Location is optional for now. If permission is denied, the report can still be saved but will show no location proof.</p>
+      </div>
     </div>
   </div>
 
