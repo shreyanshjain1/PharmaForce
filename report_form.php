@@ -217,6 +217,11 @@ render_header($id ? 'Edit Report' : 'Create Report');
 .location-status-pill.captured{background:#ecfdf5;color:#15803d;border-color:#bbf7d0}
 .location-status-pill.denied,.location-status-pill.error,.location-status-pill.unavailable,.location-status-pill.unsupported{background:#fff1f2;color:#b91c1c;border-color:#fecdd3}
 .location-proof-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+
+.location-map-preview{margin-top:12px;overflow:hidden;border:1px solid rgba(15,118,110,.14);border-radius:22px;background:#ffffff;box-shadow:0 12px 28px rgba(15,118,110,.06)}
+.location-map-preview iframe{display:block;width:100%;height:230px;border:0}
+.location-status-pill.waiting{background:#f8fafc;color:#475569;border-color:#cbd5e1}
+.location-status-pill.capturing{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}
 @media(max-width:760px){.location-proof-head{display:grid}.location-proof-grid{grid-template-columns:1fr}.location-proof-actions,.location-proof-actions .btn{width:100%}}
 </style>
 
@@ -268,21 +273,23 @@ render_header($id ? 'Edit Report' : 'Create Report');
         <div class="location-proof-head">
           <div>
             <span class="eyebrow">Location Proof</span>
-            <h3>Signature geotag</h3>
-            <p>Capture the tablet location when the doctor/client signs. This helps verify where the signature was taken.</p>
+            <h3>Automatic signature geotag</h3>
+            <p>The app will automatically capture the tablet location when the doctor/client starts signing. Clearing the signature also clears the saved location.</p>
           </div>
-          <span class="location-status-pill" data-geo-status-label>Not Captured</span>
+          <span class="location-status-pill" data-geo-status-label>Waiting for Signature</span>
         </div>
         <div class="location-proof-grid">
           <div class="location-proof-item"><span>Latitude</span><strong data-geo-latitude-label><?= e($report['signature_latitude'] ?? 'Not captured') ?></strong></div>
           <div class="location-proof-item"><span>Longitude</span><strong data-geo-longitude-label><?= e($report['signature_longitude'] ?? 'Not captured') ?></strong></div>
           <div class="location-proof-item"><span>Accuracy</span><strong data-geo-accuracy-label><?= !empty($report['signature_accuracy']) ? e(round((float)$report['signature_accuracy'])) . ' meters' : 'Not captured' ?></strong></div>
         </div>
+        <div class="location-map-preview" data-geo-map-preview hidden>
+          <iframe data-geo-map-frame title="Signature location map" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
         <div class="location-proof-actions">
-          <button class="btn small primary" type="button" data-capture-location>Capture Location</button>
           <a class="btn small ghost" data-geo-map-link target="_blank" href="#" hidden>Open Map</a>
         </div>
-        <p class="muted" data-geo-message style="margin:.75rem 0 0">Location is optional for now. If permission is denied, the report can still be saved but will show no location proof.</p>
+        <p class="muted" data-geo-message style="margin:.75rem 0 0">Ask for location permission when prompted. Location is optional for now, but reports without it will show no location proof.</p>
       </div>
     </div>
   </div>
