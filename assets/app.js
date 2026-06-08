@@ -52,6 +52,7 @@ if (signatureCanvas) {
     event.preventDefault();
     drawing = true;
     hasInk = true;
+    window.PharmaForceGeo?.captureLocationFromSignature?.();
     const point = getPoint(event);
     ctx.beginPath();
     ctx.moveTo(point.x, point.y);
@@ -81,6 +82,7 @@ if (signatureCanvas) {
     ctx.clearRect(0, 0, rect.width, rect.height);
     hasInk = false;
     document.querySelector('[data-signature-data]').value = '';
+    window.PharmaForceGeo?.clearLocation?.();
   });
 
   document.querySelector('[data-report-form]')?.addEventListener('submit', () => {
@@ -283,16 +285,17 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') closeTaskModal();
 });
 
-
 // Report signature geotagging.
+// Location capture is triggered automatically on the first signature stroke.
+// Clearing the signature also clears the geotag so old location proof cannot be reused with a new signature.
 (function () {
-  const captureButton = document.querySelector('[data-capture-location]');
   const statusInput = document.querySelector('[data-geo-status]');
   const latInput = document.querySelector('[data-geo-latitude]');
   const lngInput = document.querySelector('[data-geo-longitude]');
   const accuracyInput = document.querySelector('[data-geo-accuracy]');
   const capturedAtInput = document.querySelector('[data-geo-captured-at]');
-  if (!captureButton || !statusInput || !latInput || !lngInput) return;
+
+  if (!statusInput || !latInput || !lngInput) return;
 
   const statusLabel = document.querySelector('[data-geo-status-label]');
   const latLabel = document.querySelector('[data-geo-latitude-label]');
@@ -300,26 +303,43 @@ document.addEventListener('keydown', (event) => {
   const accuracyLabel = document.querySelector('[data-geo-accuracy-label]');
   const message = document.querySelector('[data-geo-message]');
   const mapLink = document.querySelector('[data-geo-map-link]');
+  const mapPreview = document.querySelector('[data-geo-map-preview]');
+  const mapFrame = document.querySelector('[data-geo-map-frame]');
+
+  let captureInProgress = false;
+  let captureAttemptedForCurrentSignature = false;
 
   function setStatus(status, text) {
     statusInput.value = status;
     if (statusLabel) {
       statusLabel.textContent = text;
-      statusLabel.className = 'location-status-pill ' + status;
+      statusLabel.className = 'location-status-pill ' + (status || 'waiting');
     }
   }
 
-  function setMessage(text) { if (message) message.textContent = text; }
+  function setMessage(text) {
+    if (message) message.textContent = text;
+  }
 
-  function updateMapLink(lat, lng) {
-    if (!mapLink) return;
-    if (!lat || !lng) {
-      mapLink.hidden = true;
-      mapLink.href = '#';
-      return;
+  function googleMapUrl(lat, lng) {
+    return 'https://www.google.com/maps?q=' + encodeURIComponent(lat + ',' + lng);
+  }
+
+  function googleMapEmbedUrl(lat, lng) {
+    return 'https://maps.google.com/maps?q=' + encodeURIComponent(lat + ',' + lng) + '&z=17&output=embed';
+  }
+
+  function updateMap(lat, lng) {
+    if (mapLink) {
+      mapLink.hidden = !(lat && lng);
+      mapLink.href = lat && lng ? googleMapUrl(lat, lng) : '#';
     }
-    mapLink.hidden = false;
-    mapLink.href = 'https://www.google.com/maps?q=' + encodeURIComponent(lat + ',' + lng);
+
+    if (mapPreview && mapFrame) {
+      mapPreview.hidden = !(lat && lng);
+      if (lat && lng) mapFrame.src = googleMapEmbedUrl(lat, lng);
+      else mapFrame.removeAttribute('src');
+    }
   }
 
   function updateDisplayFromInputs() {
@@ -327,31 +347,57 @@ document.addEventListener('keydown', (event) => {
     const lng = lngInput.value;
     const accuracy = accuracyInput ? accuracyInput.value : '';
     const status = statusInput.value;
+
     if (latLabel) latLabel.textContent = lat || 'Not captured';
     if (lngLabel) lngLabel.textContent = lng || 'Not captured';
     if (accuracyLabel) accuracyLabel.textContent = accuracy ? Math.round(Number(accuracy)) + ' meters' : 'Not captured';
+
     if (lat && lng) {
       setStatus('captured', 'Location Captured');
-      updateMapLink(lat, lng);
+      updateMap(lat, lng);
     } else if (status) {
-      const label = {denied:'Permission Denied', unavailable:'Unavailable', unsupported:'Unsupported', error:'Location Error'}[status] || 'Not Captured';
+      const label = {
+        denied: 'Permission Denied',
+        unavailable: 'Unavailable',
+        unsupported: 'Unsupported',
+        error: 'Location Error',
+        capturing: 'Capturing Location',
+        waiting: 'Waiting for Signature'
+      }[status] || 'Not Captured';
       setStatus(status, label);
-      updateMapLink('', '');
+      updateMap('', '');
     } else {
-      setStatus('', 'Not Captured');
-      updateMapLink('', '');
+      setStatus('waiting', 'Waiting for Signature');
+      updateMap('', '');
     }
   }
 
-  captureButton.addEventListener('click', function () {
+  function clearLocation() {
+    latInput.value = '';
+    lngInput.value = '';
+    if (accuracyInput) accuracyInput.value = '';
+    if (capturedAtInput) capturedAtInput.value = '';
+    statusInput.value = 'waiting';
+    captureAttemptedForCurrentSignature = false;
+    captureInProgress = false;
+    updateDisplayFromInputs();
+    setMessage('Location cleared because the signature was cleared. Sign again to automatically capture a fresh location.');
+  }
+
+  function captureLocationFromSignature() {
+    if (captureInProgress || captureAttemptedForCurrentSignature || latInput.value || lngInput.value) return;
+
+    captureAttemptedForCurrentSignature = true;
+
     if (!navigator.geolocation) {
       setStatus('unsupported', 'Unsupported');
       setMessage('This browser does not support location capture.');
       return;
     }
-    captureButton.disabled = true;
-    captureButton.textContent = 'Capturing...';
-    setMessage('Requesting location permission. Please allow location access on this device.');
+
+    captureInProgress = true;
+    setStatus('capturing', 'Capturing Location');
+    setMessage('Signature started. Requesting location permission automatically. Please allow location access on this device.');
 
     navigator.geolocation.getCurrentPosition(
       function (position) {
@@ -359,25 +405,36 @@ document.addEventListener('keydown', (event) => {
         const lat = Number(coords.latitude || 0).toFixed(7);
         const lng = Number(coords.longitude || 0).toFixed(7);
         const accuracy = coords.accuracy ? String(coords.accuracy) : '';
+
         latInput.value = lat;
         lngInput.value = lng;
         if (accuracyInput) accuracyInput.value = accuracy;
         if (capturedAtInput) capturedAtInput.value = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+        captureInProgress = false;
         updateDisplayFromInputs();
-        setMessage('Location captured successfully. Accuracy depends on the tablet/browser GPS signal.');
-        captureButton.textContent = 'Recapture Location';
-        captureButton.disabled = false;
+        setMessage('Location captured automatically from this signature. Accuracy depends on the tablet/browser GPS signal.');
       },
       function (error) {
-        const status = error && error.code === error.PERMISSION_DENIED ? 'denied' : (error && error.code === error.POSITION_UNAVAILABLE ? 'unavailable' : 'error');
+        const status = error && error.code === error.PERMISSION_DENIED
+          ? 'denied'
+          : (error && error.code === error.POSITION_UNAVAILABLE ? 'unavailable' : 'error');
+
+        captureInProgress = false;
         setStatus(status, status === 'denied' ? 'Permission Denied' : 'Location Error');
-        setMessage(status === 'denied' ? 'Location permission was denied. The report can still be saved, but it will show no location proof.' : 'Location could not be captured. Check GPS/location services and try again.');
-        captureButton.textContent = 'Try Capture Again';
-        captureButton.disabled = false;
+        setMessage(status === 'denied'
+          ? 'Location permission was denied. The report can still be saved, but it will show no location proof.'
+          : 'Location could not be captured. Check GPS/location services and sign again after clearing the signature if needed.');
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
-  });
+  }
+
+  window.PharmaForceGeo = {
+    captureLocationFromSignature,
+    clearLocation,
+    updateDisplayFromInputs
+  };
 
   updateDisplayFromInputs();
 })();

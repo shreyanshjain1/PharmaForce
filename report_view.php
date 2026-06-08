@@ -431,6 +431,9 @@ render_header('Report Details');
     .report-geotag-card{padding:.95rem;border:1px solid rgba(15,118,110,.12);border-radius:18px;background:#fbfffd}
     .report-geotag-card span{display:block;margin-bottom:.4rem;font-size:.72rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#64748b}
     .report-geotag-card strong{display:block;color:#0f172a;font-size:.94rem;line-height:1.4;overflow-wrap:anywhere}
+    
+    .report-map-preview{margin-top:1rem;overflow:hidden;border:1px solid rgba(15,118,110,.14);border-radius:22px;background:#ffffff;box-shadow:0 12px 28px rgba(15,118,110,.06)}
+    .report-map-preview iframe{display:block;width:100%;height:260px;border:0}
     .report-geotag-status{display:inline-flex;align-items:center;min-height:34px;padding:7px 11px;border-radius:999px;border:1px solid rgba(15,118,110,.16);background:#fffdf2;color:#854d0e;font-size:12px;font-weight:950}
     .report-geotag-status.captured{background:#ecfdf5;color:#15803d;border-color:#bbf7d0}
     .report-geotag-status.denied,.report-geotag-status.unavailable,.report-geotag-status.unsupported,.report-geotag-status.error{background:#fff1f2;color:#b91c1c;border-color:#fecdd3}
@@ -908,7 +911,17 @@ render_header('Report Details');
                 <div class="report-geotag-card"><span>Captured At</span><strong><?= e($signatureCapturedAt !== '' ? report_date($signatureCapturedAt) : 'Not captured') ?></strong></div>
             </div>
             <?php if ($hasSignatureLocation): ?>
-                <p class="no-print" style="margin:1rem 0 0"><a class="btn small ghost" target="_blank" href="<?= e($signatureLocationMap) ?>">Open Location in Google Maps</a></p>
+                <div class="report-map-preview">
+                    <iframe
+                        title="Report saved from location map"
+                        loading="lazy"
+                        referrerpolicy="no-referrer-when-downgrade"
+                        src="https://maps.google.com/maps?q=<?= e(rawurlencode($signatureLatitude . ',' . $signatureLongitude)) ?>&z=17&output=embed">
+                    </iframe>
+                </div>
+                <p class="no-print" style="margin:1rem 0 0">
+                    <a class="btn small ghost" target="_blank" href="<?= e($signatureLocationMap) ?>">Open Location in Google Maps</a>
+                </p>
             <?php else: ?>
                 <p class="muted" style="margin:1rem 0 0">No signature location was captured for this report.</p>
             <?php endif; ?>
