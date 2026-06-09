@@ -1,5 +1,5 @@
 <?php
-require __DIR__ . '/app/bootstrap.php'; require_login();
+require __DIR__ . '/app/bootstrap.php'; require_any_permission(['analytics.view', 'analytics.view_own']);
 [$scopeSql,$scopeParams]=scope_clause($pdo,'r');
 $from=$_GET['from']??date('Y-m-01'); $to=$_GET['to']??date('Y-m-t'); $rep=(int)($_GET['rep']??0); $doctor=trim($_GET['doctor']??'');
 $where=[$scopeSql,'DATE(r.visit_datetime) BETWEEN ? AND ?']; $params=array_merge($scopeParams,[$from,$to]);
@@ -15,10 +15,7 @@ $byDay=rows($pdo,'SELECT DATE(r.visit_datetime) label, COUNT(*) total '.$base.' 
 $max=max(1,...array_map(fn($x)=>(int)$x['total'],array_merge($byRep,$byStatus,$byDoctor,$byDay,[['total'=>1]])));
 $users=fetch_users($pdo,true);
 render_header('Analytics');
-function chart(string $title,array $rows,int $max):void{ ?><div class="card"><div class="section-title"><div><span class="eyebrow">Smart KPI</span><h2><?= e($title) ?></h2></div></div><?php if(!$rows): ?><div class="empty analytics-empty">
-    <p class="empty-note">No chart data exists for this filter yet. Try expanding the date range, clearing the rep filter, or checking if reports were submitted during this period.</p>
-    <div class="empty-actions"><a class="btn ghost" href="analytics.php">Reset Analytics Filters</a></div>
-</div><?php else: ?><div class="chart-bars"><?php foreach($rows as $r): ?><div class="bar-row"><strong><?= e(status_label($r['label'])!==$r['label']?status_label($r['label']):$r['label']) ?></strong><div class="bar-track"><div class="bar-fill" style="width:<?= max(5,((int)$r['total']/$max)*100) ?>%"></div></div><b><?= (int)$r['total'] ?></b></div><?php endforeach; ?></div><?php endif; ?></div><?php }
+function chart(string $title,array $rows,int $max):void{ ?><div class="card"><div class="section-title"><div><span class="eyebrow">Smart KPI</span><h2><?= e($title) ?></h2></div></div><?php if(!$rows): ?><div class="empty">No data found. Try a wider filter range.</div><?php else: ?><div class="chart-bars"><?php foreach($rows as $r): ?><div class="bar-row"><strong><?= e(status_label($r['label'])!==$r['label']?status_label($r['label']):$r['label']) ?></strong><div class="bar-track"><div class="bar-fill" style="width:<?= max(5,((int)$r['total']/$max)*100) ?>%"></div></div><b><?= (int)$r['total'] ?></b></div><?php endforeach; ?></div><?php endif; ?></div><?php }
 ?>
 <div class="hero"><div><span class="eyebrow">Analytics</span><h2>Filter-aware performance dashboard</h2><p>Charts update by date range, sales rep, and doctor search without fake SLA clutter.</p></div></div>
 <form class="card filters" style="margin-bottom:18px"><div class="field"><label>From</label><input class="input" type="date" name="from" value="<?= e($from) ?>"></div><div class="field"><label>To</label><input class="input" type="date" name="to" value="<?= e($to) ?>"></div><div class="field"><label>Sales Rep</label><select name="rep"><option value="0">All visible reps</option><?php foreach($users as $u): if(!in_array((int)$u['id'],visible_user_ids($pdo),true)) continue; ?><option value="<?= (int)$u['id'] ?>" <?= $rep===(int)$u['id']?'selected':'' ?>><?= e($u['name']) ?></option><?php endforeach; ?></select></div><div class="field"><label>Doctor</label><input class="input" name="doctor" value="<?= e($doctor) ?>" placeholder="Doctor name"></div><button class="btn primary">Apply</button></form>

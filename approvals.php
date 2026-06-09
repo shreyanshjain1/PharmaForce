@@ -1,13 +1,8 @@
 <?php
 require __DIR__ . '/app/bootstrap.php';
 
-require_login();
+require_permission('approvals.view');
 verify_csrf();
-
-if (!is_manager()) {
-    http_response_code(403);
-    exit('Approvals are only available to managers and district managers.');
-}
 
 function approvals_ready(PDO $pdo): bool
 {
@@ -142,6 +137,7 @@ $currentRole = $current['role'] ?? 'employee';
 $currentUserId = (int)($current['id'] ?? 0);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['approval_action'] ?? '') === 'review') {
+    require_permission('approvals.review');
     $type = $_POST['entity_type'] === 'expense' ? 'expense' : 'report';
     $entityId = (int)($_POST['entity_id'] ?? 0);
     $decision = normalize_status($_POST['decision'] ?? 'pending');

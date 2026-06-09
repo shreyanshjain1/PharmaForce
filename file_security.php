@@ -1,7 +1,7 @@
 <?php
 require __DIR__ . '/app/bootstrap.php';
 
-require_top_manager();
+require_permission('file_security.view');
 
 function fs_format_bytes(int $bytes): string
 {
