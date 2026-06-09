@@ -171,6 +171,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['expense_action'] ?? '') ==
         exit;
     }
 
+    $wasExpenseUpdate = $reportId > 0;
+
     if ($reportId > 0) {
         [$scopeSql, $scopeParams] = expense_scope_clause($pdo, 'er');
         $check = $pdo->prepare("SELECT er.* FROM expense_reports er WHERE er.id = ? AND $scopeSql LIMIT 1");
@@ -191,6 +193,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['expense_action'] ?? '') ==
         $insert->execute([$reportId, $item['expense_date'], $item['particulars'], $item['gasoline'], $item['toll'], $item['parking'], $item['transportation'], $item['representation'], $item['accommodation'], $item['others'], $item['total'], $item['remarks'], $item['receipt_path']]);
     }
 
+    audit_log($pdo, $wasExpenseUpdate ? 'expense_updated' : 'expense_created', 'expense', $reportId, [
+        'title' => $title,
+        'report_month' => $reportMonth,
+        'total_amount' => $grandTotal,
+        'item_count' => count($items),
+        'receipt_count' => count(array_filter(array_column($items, 'receipt_path'))),
+    ]);
+
     flash('success', 'Expense report saved.');
     header('Location: expenses.php?action=view&id=' . $reportId);
     exit;
@@ -203,6 +213,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['expense_action'] ?? '') ==
     [$scopeSql, $scopeParams] = expense_scope_clause($pdo, 'er');
     $stmt = $pdo->prepare("UPDATE expense_reports er SET er.status = ?, er.manager_comment = ?, er.updated_at = NOW() WHERE er.id = ? AND $scopeSql");
     $stmt->execute(array_merge([$status, $comment, $reportId], $scopeParams));
+    audit_log($pdo, 'expense_reviewed', 'expense', $reportId, [
+        'status' => $status,
+        'comment_added' => $comment !== '',
+    ]);
     flash('success', 'Expense review saved.');
     header('Location: expenses.php?action=view&id=' . $reportId);
     exit;

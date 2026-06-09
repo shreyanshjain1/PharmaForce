@@ -37,6 +37,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && is_manager()) {
     ");
     $update->execute([$status, $comment, $id]);
 
+    audit_log($pdo, 'report_reviewed', 'report', $id, [
+        'status' => $status,
+        'comment_added' => $comment !== '',
+    ]);
+
     flash('success', 'Manager review saved.');
     header('Location: report_view.php?id=' . $id);
     exit;

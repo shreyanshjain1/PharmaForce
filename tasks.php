@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($visibleIds) {
             $placeholders = implode(',', array_fill(0, count($visibleIds), '?'));
             $pdo->prepare("DELETE FROM events WHERE id = ? AND user_id IN ($placeholders)")->execute(array_merge([$id], $visibleIds));
+            audit_log($pdo, 'task_deleted', 'task', $id);
         }
         flash('success', 'Task deleted.');
         header('Location: tasks.php');
@@ -52,9 +53,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($id) {
         unset($eventValues['user_id'], $eventValues['created_at']);
         update_dynamic($pdo, 'events', $eventValues, 'id = ?', [$id]);
+        audit_log($pdo, 'task_updated', 'task', $id, [
+            'title' => $title,
+            'doctor_id' => $doctorId,
+            'start' => $start,
+        ]);
         flash('success', 'Task updated.');
     } else {
-        insert_dynamic($pdo, 'events', $eventValues);
+        $newTaskId = insert_dynamic($pdo, 'events', $eventValues);
+        audit_log($pdo, 'task_created', 'task', $newTaskId, [
+            'title' => $title,
+            'doctor_id' => $doctorId,
+            'start' => $start,
+        ]);
         flash('success', 'Task created.');
     }
     header('Location: tasks.php');
