@@ -113,8 +113,8 @@ function is_logged_in(): bool { return current_user() !== null; }
 function is_manager(): bool { $u = current_user(); return $u && in_array($u['role'], ['manager','district_manager'], true); }
 function is_top_manager(): bool { $u = current_user(); return $u && $u['role'] === 'manager'; }
 function require_login(): void { if (!is_logged_in()) { header('Location: login.php'); exit; } }
-function require_manager(): void { require_login(); if (!is_manager()) { http_response_code(403); exit('Forbidden'); } }
-function require_top_manager(): void { require_login(); if (!is_top_manager()) { http_response_code(403); exit('Forbidden'); } }
+function require_manager(): void { require_permission('approvals.view'); }
+function require_top_manager(): void { require_permission('security.view'); }
 function csrf_token(): string { if (empty($_SESSION['csrf'])) { $_SESSION['csrf'] = bin2hex(random_bytes(32)); } return $_SESSION['csrf']; }
 function verify_csrf(): void { if ($_SERVER['REQUEST_METHOD'] === 'POST' && !hash_equals($_SESSION['csrf'] ?? '', $_POST['_csrf'] ?? '')) { http_response_code(419); exit('Invalid session token. Please go back and reload.'); } }
 function flash(string $type, string $message): void { $_SESSION['flash'][] = ['type'=>$type, 'message'=>$message]; }
@@ -142,6 +142,99 @@ function active_nav(string $file): string { return basename($_SERVER['SCRIPT_NAM
 function normalize_status(?string $status): string { return in_array($status, ['pending','approved','needs_changes'], true) ? $status : 'pending'; }
 function status_label(string $status): string { return ['pending'=>'Pending','approved'=>'Approved','needs_changes'=>'Needs Changes'][$status] ?? $status; }
 function role_label(string $role): string { return ['manager'=>'Manager','district_manager'=>'District Manager','employee'=>'Employee'][$role] ?? $role; }
+
+function permission_matrix(): array {
+    return [
+        'employee' => [
+            'dashboard.view',
+            'my_work.view',
+            'reports.view',
+            'reports.create',
+            'reports.edit_own',
+            'reports.view_own',
+            'expenses.view',
+            'expenses.create',
+            'expenses.edit_own',
+            'tasks.view',
+            'tasks.create',
+            'tasks.edit_own',
+            'tasks.delete_own',
+            'doctors.view',
+            'doctor_profiles.view',
+            'analytics.view_own',
+            'profile.view',
+        ],
+        'district_manager' => [
+            'dashboard.view',
+            'my_work.view',
+            'reports.view',
+            'reports.create',
+            'reports.edit_own',
+            'reports.edit_team',
+            'reports.view_team',
+            'reports.review',
+            'expenses.view',
+            'expenses.create',
+            'expenses.edit_own',
+            'expenses.view_team',
+            'expenses.review',
+            'tasks.view',
+            'tasks.create',
+            'tasks.edit_own',
+            'tasks.edit_team',
+            'tasks.delete_own',
+            'tasks.delete_team',
+            'doctors.view',
+            'doctors.create',
+            'doctors.edit',
+            'doctor_profiles.view',
+            'analytics.view',
+            'approvals.view',
+            'approvals.review',
+            'profile.view',
+        ],
+        'manager' => [
+            '*',
+        ],
+    ];
+}
+
+function can(string $permission, ?array $user = null): bool {
+    $user = $user ?: current_user();
+    if (!$user) return false;
+
+    $role = (string)($user['role'] ?? 'employee');
+    $permissions = permission_matrix()[$role] ?? [];
+
+    return in_array('*', $permissions, true) || in_array($permission, $permissions, true);
+}
+
+function require_permission(string $permission): void {
+    require_login();
+
+    if (!can($permission)) {
+        http_response_code(403);
+        exit('Forbidden');
+    }
+}
+
+function can_any(array $permissions, ?array $user = null): bool {
+    foreach ($permissions as $permission) {
+        if (can((string)$permission, $user)) return true;
+    }
+
+    return false;
+}
+
+function require_any_permission(array $permissions): void {
+    require_login();
+
+    if (!can_any($permissions)) {
+        http_response_code(403);
+        exit('Forbidden');
+    }
+}
+
 function row_value(array $row, string $key, mixed $fallback = ''): mixed { return array_key_exists($key, $row) ? $row[$key] : $fallback; }
 
 function table_columns(PDO $pdo, string $table): array {
@@ -500,12 +593,13 @@ function render_header(string $title, string $eyebrow = 'Pharmastar CRM'): void 
       <a class="<?= active_nav('report_form.php') ?>" href="report_form.php"><span class="nav-icon">N</span><span class="nav-label">New Report</span></a>
       <a class="<?= active_nav('tasks.php') ?>" href="tasks.php"><span class="nav-icon">T</span><span class="nav-label">Tasks</span><?php if (($navBadges['tasks'] ?? 0) > 0): ?><span class="nav-badge"><?= (int)$navBadges['tasks'] ?></span><?php endif; ?></a>
       <a class="<?= active_nav('expenses.php') ?>" href="expenses.php"><span class="nav-icon">E</span><span class="nav-label">Expenses</span><?php if (($navBadges['expenses'] ?? 0) > 0): ?><span class="nav-badge"><?= (int)$navBadges['expenses'] ?></span><?php endif; ?></a>
-      <?php if (is_manager()): ?><a class="<?= active_nav('approvals.php') ?>" href="approvals.php"><span class="nav-icon">A</span><span class="nav-label">Approvals</span><?php if (($navBadges['approvals'] ?? 0) > 0): ?><span class="nav-badge urgent"><?= (int)$navBadges['approvals'] ?></span><?php endif; ?></a><?php endif; ?>
+      <?php if (can('approvals.view')): ?><a class="<?= active_nav('approvals.php') ?>" href="approvals.php"><span class="nav-icon">A</span><span class="nav-label">Approvals</span><?php if (($navBadges['approvals'] ?? 0) > 0): ?><span class="nav-badge urgent"><?= (int)$navBadges['approvals'] ?></span><?php endif; ?></a><?php endif; ?>
       <a class="<?= active_nav('analytics.php') ?>" href="analytics.php"><span class="nav-icon">K</span><span class="nav-label">Analytics</span></a>
       <a class="<?= active_nav('doctors.php') ?>" href="doctors.php"><span class="nav-icon">Dr</span><span class="nav-label">Doctors</span></a>
-      <?php if (is_manager()): ?><a class="<?= active_nav('users.php') ?>" href="users.php"><span class="nav-icon">U</span><span class="nav-label">Users</span></a><?php endif; ?>
-      <?php if (is_top_manager()): ?><a class="<?= active_nav('security.php') ?>" href="security.php"><span class="nav-icon">S</span><span class="nav-label">Security</span></a><?php endif; ?>
-      <?php if (is_top_manager()): ?><a class="<?= active_nav('file_security.php') ?>" href="file_security.php"><span class="nav-icon">F</span><span class="nav-label">File Security</span></a><?php endif; ?>
+      <?php if (can('users.view')): ?><a class="<?= active_nav('users.php') ?>" href="users.php"><span class="nav-icon">U</span><span class="nav-label">Users</span></a><?php endif; ?>
+      <?php if (can('security.view')): ?><a class="<?= active_nav('security.php') ?>" href="security.php"><span class="nav-icon">S</span><span class="nav-label">Security</span></a><?php endif; ?>
+      <?php if (can('file_security.view')): ?><a class="<?= active_nav('file_security.php') ?>" href="file_security.php"><span class="nav-icon">F</span><span class="nav-label">File Security</span></a><?php endif; ?>
+      <?php if (can('security.view')): ?><a class="<?= active_nav('permissions.php') ?>" href="permissions.php"><span class="nav-icon">PM</span><span class="nav-label">Permissions</span></a><?php endif; ?>
       <a class="<?= active_nav('profile.php') ?>" href="profile.php"><span class="nav-icon">P</span><span class="nav-label">Profile</span></a>
     </nav>
     <div class="sidebar-user">

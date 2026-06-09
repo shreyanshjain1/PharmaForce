@@ -1,19 +1,14 @@
 <?php
 require __DIR__ . '/app/bootstrap.php';
 
-require_login();
-
-if (!is_manager()) {
-    http_response_code(403);
-    exit('Forbidden');
-}
+require_permission('users.view');
 
 verify_csrf();
 
 $hasDistrictManager = column_exists($pdo, 'users', 'district_manager_id');
 $hasActive = column_exists($pdo, 'users', 'active');
 $hasPasswordHash = column_exists($pdo, 'users', 'password_hash');
-$isTopManager = is_top_manager();
+$isTopManager = can('users.edit');
 
 function user_active_value(array $user): int
 {
@@ -30,7 +25,7 @@ function safe_role(string $role): string
     return in_array($role, ['employee', 'district_manager', 'manager'], true) ? $role : 'employee';
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $isTopManager) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && can('users.edit')) {
     $action = $_POST['action'] ?? 'save_user';
     $id = (int)($_POST['id'] ?? 0);
 
