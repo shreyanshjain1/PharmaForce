@@ -1,7 +1,7 @@
 <?php
 require __DIR__ . '/app/bootstrap.php';
 
-require_login();
+require_any_permission(['reports.view', 'reports.view_own', 'reports.view_team']);
 verify_csrf();
 
 [$scopeSql, $scopeParams] = scope_clause($pdo, 'r');
@@ -26,7 +26,8 @@ if (!$r) {
     exit('Report not found');
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && is_manager()) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_permission('reports.review');
     $status = normalize_status($_POST['status'] ?? 'pending');
     $comment = trim($_POST['manager_comment'] ?? '');
 
@@ -682,7 +683,7 @@ render_header('Report Details');
 
         <div class="report-actions">
             <a class="btn ghost" href="reports.php">Back</a>
-            <a class="btn ghost" href="report_form.php?id=<?= (int)$r['id'] ?>">Edit</a>
+            <?php if (can('reports.edit_team') || ((int)($r['user_id'] ?? 0) === (int)(current_user()['id'] ?? 0) && can('reports.edit_own'))): ?><a class="btn ghost" href="report_form.php?id=<?= (int)$r['id'] ?>">Edit</a><?php endif; ?>
             <button type="button" class="btn primary print-btn" onclick="window.print()">Export to PDF / Print</button>
         </div>
     </div>
@@ -933,7 +934,7 @@ render_header('Report Details');
         </div>
     </section>
 
-    <?php if (is_manager()): ?>
+    <?php if (can('reports.review')): ?>
         <form class="manager-review-card no-print" method="post">
             <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
 
