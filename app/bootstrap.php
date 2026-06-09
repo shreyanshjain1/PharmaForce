@@ -1,11 +1,94 @@
 <?php
 declare(strict_types=1);
 
+date_default_timezone_set('Asia/Manila');
+
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+ini_set('session.use_strict_mode', '1');
+ini_set('session.use_only_cookies', '1');
+ini_set('session.cookie_httponly', '1');
+ini_set('session.cookie_samesite', 'Lax');
+
+function is_https_request(): bool
+{
+    return (
+        (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
+        (($_SERVER['SERVER_PORT'] ?? '') === '443') ||
+        (strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https')
+    );
+}
+
+function is_local_request(): bool
+{
+    $host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
+    return str_contains($host, 'localhost') || str_contains($host, '127.0.0.1') || str_contains($host, '.test');
+}
+
+function send_security_headers(): void
+{
+    if (headers_sent()) return;
+
+    header('X-Frame-Options: SAMEORIGIN');
+    header('X-Content-Type-Options: nosniff');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('Permissions-Policy: geolocation=(self), camera=(), microphone=()');
+    header('X-Permitted-Cross-Domain-Policies: none');
+
+    if (is_https_request()) {
+        header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+    }
+}
+
+send_security_headers();
+
 if (session_status() === PHP_SESSION_NONE) {
+    session_name('PHARMAFORCESESSID');
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'domain' => '',
+        'secure' => is_https_request(),
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
     session_start();
 }
 
-date_default_timezone_set('Asia/Manila');
+function enforce_session_security(): void
+{
+    $now = time();
+    $idleLimit = 60 * 60 * 2;
+    $absoluteLimit = 60 * 60 * 10;
+    $fingerprint = hash('sha256', ($_SERVER['HTTP_USER_AGENT'] ?? '') . '|' . substr((string)($_SERVER['REMOTE_ADDR'] ?? ''), 0, 7));
+
+    if (!isset($_SESSION['created_at'])) {
+        $_SESSION['created_at'] = $now;
+    }
+
+    if (!isset($_SESSION['fingerprint'])) {
+        $_SESSION['fingerprint'] = $fingerprint;
+    }
+
+    $expired = isset($_SESSION['last_activity']) && ($now - (int)$_SESSION['last_activity']) > $idleLimit;
+    $tooOld = isset($_SESSION['created_at']) && ($now - (int)$_SESSION['created_at']) > $absoluteLimit;
+    $fingerprintChanged = isset($_SESSION['fingerprint']) && $_SESSION['fingerprint'] !== $fingerprint;
+
+    if (isset($_SESSION['user']) && ($expired || $tooOld || $fingerprintChanged)) {
+        $_SESSION = [];
+        if (ini_get('session.use_cookies')) {
+            $params = session_get_cookie_params();
+            setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], (bool)$params['secure'], (bool)$params['httponly']);
+        }
+        session_destroy();
+        header('Location: login.php?expired=1');
+        exit;
+    }
+
+    $_SESSION['last_activity'] = $now;
+}
+
+enforce_session_security();
 
 $config = require __DIR__ . '/../config/database.php';
 
@@ -17,8 +100,9 @@ try {
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
 } catch (Throwable $e) {
+    error_log('Database connection failed: ' . $e->getMessage());
     http_response_code(500);
-    echo '<h1>Database connection failed</h1><p>Edit <code>config/database.php</code> and confirm MySQL is running.</p><pre>' . htmlspecialchars($e->getMessage()) . '</pre>';
+    echo '<h1>Database connection failed</h1><p>Please contact the system administrator.</p>';
     exit;
 }
 
@@ -29,10 +113,31 @@ function is_logged_in(): bool { return current_user() !== null; }
 function is_manager(): bool { $u = current_user(); return $u && in_array($u['role'], ['manager','district_manager'], true); }
 function is_top_manager(): bool { $u = current_user(); return $u && $u['role'] === 'manager'; }
 function require_login(): void { if (!is_logged_in()) { header('Location: login.php'); exit; } }
+function require_manager(): void { require_login(); if (!is_manager()) { http_response_code(403); exit('Forbidden'); } }
+function require_top_manager(): void { require_login(); if (!is_top_manager()) { http_response_code(403); exit('Forbidden'); } }
 function csrf_token(): string { if (empty($_SESSION['csrf'])) { $_SESSION['csrf'] = bin2hex(random_bytes(32)); } return $_SESSION['csrf']; }
 function verify_csrf(): void { if ($_SERVER['REQUEST_METHOD'] === 'POST' && !hash_equals($_SESSION['csrf'] ?? '', $_POST['_csrf'] ?? '')) { http_response_code(419); exit('Invalid session token. Please go back and reload.'); } }
 function flash(string $type, string $message): void { $_SESSION['flash'][] = ['type'=>$type, 'message'=>$message]; }
 function flashes(): array { $items = $_SESSION['flash'] ?? []; unset($_SESSION['flash']); return $items; }
+
+function audit_log(PDO $pdo, string $action, string $entityType = '', ?int $entityId = null, array $details = []): void {
+    try {
+        if (!table_columns($pdo, 'activity_logs')) return;
+        $u = current_user();
+        insert_dynamic($pdo, 'activity_logs', [
+            'user_id' => $u['id'] ?? null,
+            'action' => $action,
+            'entity_type' => $entityType,
+            'entity_id' => $entityId,
+            'details' => $details ? json_encode($details, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null,
+            'ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
+            'user_agent' => substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+    } catch (Throwable $e) {
+        error_log('Audit log failed: ' . $e->getMessage());
+    }
+}
 function active_nav(string $file): string { return basename($_SERVER['SCRIPT_NAME']) === $file ? 'active' : ''; }
 function normalize_status(?string $status): string { return in_array($status, ['pending','approved','needs_changes'], true) ? $status : 'pending'; }
 function status_label(string $status): string { return ['pending'=>'Pending','approved'=>'Approved','needs_changes'=>'Needs Changes'][$status] ?? $status; }
@@ -142,15 +247,91 @@ function fetch_doctor_cities(PDO $pdo): array {
     return $pdo->query("SELECT DISTINCT place FROM doctors_masterlist WHERE place IS NOT NULL AND place <> '' ORDER BY place ASC")->fetchAll(PDO::FETCH_COLUMN);
 }
 
-function save_uploaded_file(string $field, string $dir): ?string {
-    if (empty($_FILES[$field]['name']) || ($_FILES[$field]['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) return null;
+function upload_error_message(int $error): string {
+    return [
+        UPLOAD_ERR_INI_SIZE => 'The uploaded file is too large.',
+        UPLOAD_ERR_FORM_SIZE => 'The uploaded file is too large.',
+        UPLOAD_ERR_PARTIAL => 'The file was only partially uploaded.',
+        UPLOAD_ERR_NO_FILE => 'No file was uploaded.',
+        UPLOAD_ERR_NO_TMP_DIR => 'Server upload folder is missing.',
+        UPLOAD_ERR_CANT_WRITE => 'Server could not write the uploaded file.',
+        UPLOAD_ERR_EXTENSION => 'The upload was blocked by a server extension.',
+    ][$error] ?? 'Upload failed.';
+}
+
+function ensure_upload_directory(string $dir): string {
     $root = __DIR__ . '/../' . trim($dir, '/');
-    if (!is_dir($root)) mkdir($root, 0775, true);
-    $ext = strtolower(pathinfo($_FILES[$field]['name'], PATHINFO_EXTENSION));
-    $safeExt = preg_match('/^[a-z0-9]{1,8}$/', $ext) ? $ext : 'bin';
-    $name = $field . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $safeExt;
+    if (!is_dir($root)) {
+        mkdir($root, 0755, true);
+    }
+
+    $htaccess = $root . '/.htaccess';
+    if (!file_exists($htaccess)) {
+        file_put_contents($htaccess, "Options -Indexes\\n<FilesMatch \\\"\\\\.(php|phtml|phar|cgi|pl|asp|aspx|jsp|sh|bat|cmd|exe)$\\\">\\n  Require all denied\\n</FilesMatch>\\nRemoveHandler .php .phtml .phar .cgi .pl .asp .aspx .jsp\\nphp_flag engine off\\n");
+    }
+
+    return $root;
+}
+
+function save_uploaded_file(string $field, string $dir): ?string {
+    if (empty($_FILES[$field]['name'])) return null;
+
+    $error = (int)($_FILES[$field]['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($error === UPLOAD_ERR_NO_FILE) return null;
+    if ($error !== UPLOAD_ERR_OK) {
+        flash('error', upload_error_message($error));
+        return null;
+    }
+
+    $maxBytes = 10 * 1024 * 1024;
+    if ((int)($_FILES[$field]['size'] ?? 0) > $maxBytes) {
+        flash('error', 'Upload blocked. Maximum file size is 10MB.');
+        return null;
+    }
+
+    $originalName = (string)($_FILES[$field]['name'] ?? '');
+    $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    $allowed = [
+        'jpg' => ['image/jpeg'],
+        'jpeg' => ['image/jpeg'],
+        'png' => ['image/png'],
+        'webp' => ['image/webp'],
+        'gif' => ['image/gif'],
+        'pdf' => ['application/pdf'],
+    ];
+
+    if (!isset($allowed[$ext])) {
+        flash('error', 'Upload blocked. Only JPG, PNG, WEBP, GIF, and PDF files are allowed.');
+        return null;
+    }
+
+    $tmp = (string)($_FILES[$field]['tmp_name'] ?? '');
+    $mime = '';
+    if (is_file($tmp)) {
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mime = (string)$finfo->file($tmp);
+    }
+
+    if (!in_array($mime, $allowed[$ext], true)) {
+        flash('error', 'Upload blocked. The file type does not match the file extension.');
+        return null;
+    }
+
+    if (str_starts_with($mime, 'image/') && @getimagesize($tmp) === false) {
+        flash('error', 'Upload blocked. The image could not be verified.');
+        return null;
+    }
+
+    $root = ensure_upload_directory($dir);
+    $name = $field . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
     $target = $root . '/' . $name;
-    if (!move_uploaded_file($_FILES[$field]['tmp_name'], $target)) return null;
+
+    if (!move_uploaded_file($tmp, $target)) {
+        flash('error', 'Upload failed. Please try again.');
+        return null;
+    }
+
+    chmod($target, 0644);
     return trim($dir, '/') . '/' . $name;
 }
 
@@ -158,13 +339,28 @@ function save_base64_image(?string $dataUrl, string $dir, string $prefix = 'sign
     $dataUrl = trim((string)$dataUrl);
     if ($dataUrl === '' || !str_starts_with($dataUrl, 'data:image/')) return null;
     if (!preg_match('/^data:image\/(png|jpeg|jpg);base64,(.+)$/', $dataUrl, $matches)) return null;
+
     $binary = base64_decode($matches[2], true);
     if ($binary === false || strlen($binary) < 50) return null;
-    $root = __DIR__ . '/../' . trim($dir, '/');
-    if (!is_dir($root)) mkdir($root, 0775, true);
-    $name = $prefix . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.png';
+
+    $maxBytes = 5 * 1024 * 1024;
+    if (strlen($binary) > $maxBytes) {
+        flash('error', 'Signature image is too large. Please clear and sign again.');
+        return null;
+    }
+
+    $imageInfo = @getimagesizefromstring($binary);
+    if ($imageInfo === false || !in_array($imageInfo['mime'] ?? '', ['image/png', 'image/jpeg'], true)) {
+        flash('error', 'Signature image could not be verified.');
+        return null;
+    }
+
+    $root = ensure_upload_directory($dir);
+    $name = preg_replace('/[^a-zA-Z0-9_-]/', '', $prefix) . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(8)) . '.png';
     $path = $root . '/' . $name;
-    file_put_contents($path, $binary);
+
+    file_put_contents($path, $binary, LOCK_EX);
+    chmod($path, 0644);
     return trim($dir, '/') . '/' . $name;
 }
 
@@ -285,7 +481,7 @@ function render_header(string $title, string $eyebrow = 'Pharmastar CRM'): void 
       }
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="assets/app.css?v=20260526-sidebar-final">
+  <link rel="stylesheet" href="assets/app.css?v=20260609-security-hardening">
 </head>
 <body>
 <div class="app-shell">
@@ -308,6 +504,7 @@ function render_header(string $title, string $eyebrow = 'Pharmastar CRM'): void 
       <a class="<?= active_nav('analytics.php') ?>" href="analytics.php"><span class="nav-icon">K</span><span class="nav-label">Analytics</span></a>
       <a class="<?= active_nav('doctors.php') ?>" href="doctors.php"><span class="nav-icon">Dr</span><span class="nav-label">Doctors</span></a>
       <?php if (is_manager()): ?><a class="<?= active_nav('users.php') ?>" href="users.php"><span class="nav-icon">U</span><span class="nav-label">Users</span></a><?php endif; ?>
+      <?php if (is_top_manager()): ?><a class="<?= active_nav('security.php') ?>" href="security.php"><span class="nav-icon">S</span><span class="nav-label">Security</span></a><?php endif; ?>
       <a class="<?= active_nav('profile.php') ?>" href="profile.php"><span class="nav-icon">P</span><span class="nav-label">Profile</span></a>
     </nav>
     <div class="sidebar-user">
@@ -416,7 +613,7 @@ function render_footer(): void { ?>
   });
 })();
 </script>
-<script src="assets/app.js?v=20260526-sidebar-final"></script>
+<script src="assets/app.js?v=20260609-security-hardening"></script>
 </body>
 </html>
 <?php }
