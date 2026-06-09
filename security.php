@@ -75,10 +75,23 @@ $checks[] = [
     'detail' => 'Production should not display PHP errors publicly.',
 ];
 
+$logAction = trim((string)($_GET['action_filter'] ?? ''));
 $recentLogs = [];
+$availableActions = [];
+
 try {
     if ($hasActivityLogs) {
-        $recentLogs = $pdo->query("SELECT a.*, u.name user_name FROM activity_logs a LEFT JOIN users u ON u.id = a.user_id ORDER BY a.created_at DESC, a.id DESC LIMIT 30")->fetchAll();
+        $availableActions = $pdo->query("SELECT DISTINCT action FROM activity_logs ORDER BY action ASC")->fetchAll(PDO::FETCH_COLUMN);
+        $sql = "SELECT a.*, u.name user_name FROM activity_logs a LEFT JOIN users u ON u.id = a.user_id";
+        $params = [];
+        if ($logAction !== '') {
+            $sql .= " WHERE a.action = ?";
+            $params[] = $logAction;
+        }
+        $sql .= " ORDER BY a.created_at DESC, a.id DESC LIMIT 75";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $recentLogs = $stmt->fetchAll();
     }
 } catch (Throwable $e) {
     $recentLogs = [];
@@ -126,6 +139,22 @@ render_header('Security Center');
             <h2>Recent security activity</h2>
         </div>
     </div>
+
+    <?php if ($availableActions): ?>
+        <form method="get" class="filters" style="margin-bottom:1rem">
+            <div class="field">
+                <label>Action Filter</label>
+                <select name="action_filter">
+                    <option value="">All actions</option>
+                    <?php foreach ($availableActions as $actionOption): ?>
+                        <option value="<?= e($actionOption) ?>" <?= $logAction === $actionOption ? 'selected' : '' ?>><?= e($actionOption) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <button class="btn primary">Filter</button>
+            <a class="btn ghost" href="security.php">Reset</a>
+        </form>
+    <?php endif; ?>
 
     <?php if (!$recentLogs): ?>
         <div class="empty">No activity logs found yet. Import the migration, then log in again to start recording events.</div>

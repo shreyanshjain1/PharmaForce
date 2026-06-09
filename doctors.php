@@ -72,6 +72,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         try {
             $newId = insert_dynamic($pdo, 'doctors_masterlist', $values);
+            audit_log($pdo, 'doctor_created', 'doctor', $newId, [
+                'doctor_name' => $doctorName,
+                'place' => $place,
+                'hospital' => $hospital,
+            ]);
             flash('success', 'Doctor added to the masterlist.');
             header('Location: doctor_profile.php?id=' . $newId);
             exit;

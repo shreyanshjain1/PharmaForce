@@ -41,6 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $isTopManager) {
             flash('error', 'You cannot deactivate your own account.');
         } else {
             update_dynamic($pdo, 'users', ['active' => $targetActive], 'id = ?', [$id]);
+            audit_log($pdo, $targetActive ? 'user_activated' : 'user_deactivated', 'user', $id);
             flash('success', $targetActive ? 'User activated.' : 'User deactivated.');
         }
 
@@ -87,12 +88,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $isTopManager) {
 
         if ($id > 0) {
             update_dynamic($pdo, 'users', $values, 'id = ?', [$id]);
+            audit_log($pdo, 'user_updated', 'user', $id, [
+                'name' => $name,
+                'email' => $email,
+                'role' => $role,
+                'password_changed' => $password !== '',
+            ]);
             flash('success', 'User updated.');
         } else {
             if ($hasPasswordHash && empty($values['password_hash'])) {
                 $values['password_hash'] = password_hash('ChangeMe123!', PASSWORD_DEFAULT);
             }
-            insert_dynamic($pdo, 'users', $values);
+            $newUserId = insert_dynamic($pdo, 'users', $values);
+            audit_log($pdo, 'user_created', 'user', $newUserId, [
+                'name' => $name,
+                'email' => $email,
+                'role' => $role,
+            ]);
             flash('success', 'User created.');
         }
 

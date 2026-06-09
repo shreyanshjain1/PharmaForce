@@ -168,12 +168,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($id && $report) {
         unset($values['user_id'], $values['status'], $values['created_at']);
         update_dynamic($pdo, 'reports', $values, 'id = ?', [$id]);
+        audit_log($pdo, 'report_updated', 'report', $id, [
+            'doctor_name' => $values['doctor_name'] ?? '',
+            'status' => $report['status'] ?? '',
+            'has_signature' => !empty($values['signature_path']) || !empty($report['signature_path']),
+            'has_attachment' => !empty($values['attachment_path']) || !empty($report['attachment_path']),
+            'has_geotag' => !empty($values['signature_latitude']) && !empty($values['signature_longitude']),
+        ]);
+        if (!empty($values['signature_latitude']) && !empty($values['signature_longitude'])) {
+            audit_log($pdo, 'signature_geotag_captured', 'report', $id, [
+                'latitude' => $values['signature_latitude'],
+                'longitude' => $values['signature_longitude'],
+                'accuracy' => $values['signature_accuracy'] ?? null,
+            ]);
+        }
         flash('success', 'Report updated.');
         header('Location: report_view.php?id=' . $id);
         exit;
     }
 
     $newReportId = insert_dynamic($pdo, 'reports', $values);
+    audit_log($pdo, 'report_created', 'report', $newReportId, [
+        'doctor_name' => $values['doctor_name'] ?? '',
+        'hospital_name' => $values['hospital_name'] ?? '',
+        'status' => $values['status'] ?? '',
+        'has_signature' => !empty($values['signature_path']),
+        'has_attachment' => !empty($values['attachment_path']),
+        'has_geotag' => !empty($values['signature_latitude']) && !empty($values['signature_longitude']),
+    ]);
+    if (!empty($values['signature_latitude']) && !empty($values['signature_longitude'])) {
+        audit_log($pdo, 'signature_geotag_captured', 'report', $newReportId, [
+            'latitude' => $values['signature_latitude'],
+            'longitude' => $values['signature_longitude'],
+            'accuracy' => $values['signature_accuracy'] ?? null,
+        ]);
+    }
     flash('success', 'Report created.');
     header('Location: report_view.php?id=' . $newReportId);
     exit;
