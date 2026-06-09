@@ -75,6 +75,16 @@ if ($id) {
     $stmt->execute(array_merge([$id], $scopeParams));
     $report = $stmt->fetch();
     if (!$report) { http_response_code(404); exit('Report not found'); }
+    $ownsReport = (int)($report['user_id'] ?? 0) === (int)(current_user()['id'] ?? 0);
+    if (!can('reports.edit_team') && !($ownsReport && can('reports.edit_own'))) {
+        http_response_code(403);
+        exit('You are not allowed to edit this report.');
+    }
+}
+
+if (!$id && !can('reports.create')) {
+    http_response_code(403);
+    exit('You are not allowed to create reports.');
 }
 
 if (!$id && $doctorIdFromUrl > 0) {

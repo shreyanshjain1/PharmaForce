@@ -1,11 +1,19 @@
 <?php
-require __DIR__ . '/app/bootstrap.php'; require_login(); verify_csrf();
+require __DIR__ . '/app/bootstrap.php'; require_any_permission(['tasks.view', 'tasks.create', 'tasks.edit_own', 'tasks.edit_team']); verify_csrf();
 
 $visibleIds = visible_user_ids($pdo);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = (int)($_POST['id'] ?? 0);
     $action = $_POST['action'] ?? 'save';
+
+    if ($action === 'delete') {
+        require_any_permission(['tasks.delete_own', 'tasks.delete_team']);
+    } elseif ($id) {
+        require_any_permission(['tasks.edit_own', 'tasks.edit_team']);
+    } else {
+        require_permission('tasks.create');
+    }
 
     if ($action === 'delete' && $id) {
         if ($visibleIds) {

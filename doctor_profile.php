@@ -1,7 +1,7 @@
 <?php
 require __DIR__ . '/app/bootstrap.php';
 
-require_login();
+require_permission('doctor_profiles.view');
 
 $doctorId = (int)($_GET['id'] ?? 0);
 

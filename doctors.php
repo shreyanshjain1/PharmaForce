@@ -4,7 +4,7 @@ require __DIR__ . '/app/bootstrap.php';
 require_login();
 verify_csrf();
 
-$canManageDoctors = is_manager();
+$canManageDoctors = can('doctors.create') || can('doctors.edit');
 
 function doctor_column(PDO $pdo, array $candidates): ?string
 {
@@ -37,7 +37,7 @@ $createdAtCol = doctor_column($pdo, ['created_at']);
 $updatedAtCol = doctor_column($pdo, ['updated_at']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!$canManageDoctors) {
+    if (!can('doctors.create')) {
         http_response_code(403);
         exit('You are not allowed to manage doctors.');
     }

@@ -120,6 +120,7 @@ $id = (int)($_GET['id'] ?? 0);
 $u = current_user();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['expense_action'] ?? '') === 'save_report') {
+    require_any_permission(['expenses.create', 'expenses.edit_own']);
     $reportId = (int)($_POST['id'] ?? 0);
     $reportMonth = month_start($_POST['report_month'] ?? '');
     $title = trim($_POST['title'] ?? 'Liquidation of Expenses');
@@ -206,7 +207,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['expense_action'] ?? '') ==
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['expense_action'] ?? '') === 'manager_review' && is_manager()) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['expense_action'] ?? '') === 'manager_review') {
+    require_permission('expenses.review');
     $reportId = (int)($_POST['id'] ?? 0);
     $status = normalize_status($_POST['status'] ?? 'pending');
     $comment = trim($_POST['manager_comment'] ?? '');
@@ -902,7 +904,7 @@ if ($action === 'new' || $action === 'edit') {
             </article>
         </div>
 
-        <?php if (is_manager()): ?>
+        <?php if (can('expenses.review')): ?>
             <form class="card no-print" method="post">
                 <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
                 <input type="hidden" name="expense_action" value="manager_review">
