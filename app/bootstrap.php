@@ -505,6 +505,7 @@ function render_header(string $title, string $eyebrow = 'Pharmastar CRM'): void 
       <a class="<?= active_nav('doctors.php') ?>" href="doctors.php"><span class="nav-icon">Dr</span><span class="nav-label">Doctors</span></a>
       <?php if (is_manager()): ?><a class="<?= active_nav('users.php') ?>" href="users.php"><span class="nav-icon">U</span><span class="nav-label">Users</span></a><?php endif; ?>
       <?php if (is_top_manager()): ?><a class="<?= active_nav('security.php') ?>" href="security.php"><span class="nav-icon">S</span><span class="nav-label">Security</span></a><?php endif; ?>
+      <?php if (is_top_manager()): ?><a class="<?= active_nav('file_security.php') ?>" href="file_security.php"><span class="nav-icon">F</span><span class="nav-label">File Security</span></a><?php endif; ?>
       <a class="<?= active_nav('profile.php') ?>" href="profile.php"><span class="nav-icon">P</span><span class="nav-label">Profile</span></a>
     </nav>
     <div class="sidebar-user">
