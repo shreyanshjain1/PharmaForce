@@ -22,6 +22,118 @@ $doctorSpecialty = trim((string)($doctor['speciality'] ?? ''));
 $doctorClass = trim((string)($doctor['class'] ?? ''));
 $doctorContact = trim((string)($doctor['contact_no'] ?? ''));
 
+$locationColumns = [
+    'lat' => column_exists($pdo, 'doctors_masterlist', 'clinic_latitude') ? 'clinic_latitude' : null,
+    'lng' => column_exists($pdo, 'doctors_masterlist', 'clinic_longitude') ? 'clinic_longitude' : null,
+    'radius' => column_exists($pdo, 'doctors_masterlist', 'allowed_visit_radius_m') ? 'allowed_visit_radius_m' : null,
+    'updated_by' => column_exists($pdo, 'doctors_masterlist', 'location_updated_by') ? 'location_updated_by' : null,
+    'updated_at' => column_exists($pdo, 'doctors_masterlist', 'location_updated_at') ? 'location_updated_at' : null,
+];
+
+$locationReady = $locationColumns['lat'] && $locationColumns['lng'];
+$canSetDoctorLocation = can('doctors.set_location') || can('doctors.edit');
+
+function doctor_profile_float_or_null($value): ?float
+{
+    $value = trim((string)$value);
+    if ($value === '' || !is_numeric($value)) return null;
+    return (float)$value;
+}
+
+function doctor_profile_location_is_valid(?float $lat, ?float $lng): bool
+{
+    return $lat !== null && $lng !== null && $lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180;
+}
+
+function doctor_profile_maps_url($lat, $lng): string
+{
+    return 'https://www.google.com/maps?q=' . rawurlencode(trim((string)$lat) . ',' . trim((string)$lng));
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['doctor_location_action'] ?? '') !== '') {
+    verify_csrf();
+
+    if (!$canSetDoctorLocation) {
+        http_response_code(403);
+        exit('You are not allowed to update doctor locations.');
+    }
+
+    if (!$locationReady) {
+        flash('error', 'Doctor location columns are not installed yet. Import the doctor location migration first.');
+        header('Location: doctor_profile.php?id=' . $doctorId);
+        exit;
+    }
+
+    $action = (string)($_POST['doctor_location_action'] ?? '');
+
+    if ($action === 'clear_location') {
+        $values = [
+            $locationColumns['lat'] => null,
+            $locationColumns['lng'] => null,
+        ];
+        if ($locationColumns['radius']) $values[$locationColumns['radius']] = null;
+        if ($locationColumns['updated_by']) $values[$locationColumns['updated_by']] = (int)(current_user()['id'] ?? 0);
+        if ($locationColumns['updated_at']) $values[$locationColumns['updated_at']] = date('Y-m-d H:i:s');
+
+        update_dynamic($pdo, 'doctors_masterlist', $values, 'id = ?', [$doctorId]);
+        audit_log($pdo, 'doctor_location_cleared', 'doctor', $doctorId, [
+            'doctor_name' => $doctorName,
+        ]);
+        flash('success', 'Doctor clinic location cleared.');
+        header('Location: doctor_profile.php?id=' . $doctorId);
+        exit;
+    }
+
+    $lat = doctor_profile_float_or_null($_POST['clinic_latitude'] ?? null);
+    $lng = doctor_profile_float_or_null($_POST['clinic_longitude'] ?? null);
+    $radius = max(50, min(2000, (int)($_POST['allowed_visit_radius_m'] ?? 200)));
+
+    if (!doctor_profile_location_is_valid($lat, $lng)) {
+        flash('error', 'Please set a valid map pin before saving.');
+        header('Location: doctor_profile.php?id=' . $doctorId);
+        exit;
+    }
+
+    $values = [
+        $locationColumns['lat'] => $lat,
+        $locationColumns['lng'] => $lng,
+    ];
+    if ($locationColumns['radius']) $values[$locationColumns['radius']] = $radius;
+    if ($locationColumns['updated_by']) $values[$locationColumns['updated_by']] = (int)(current_user()['id'] ?? 0);
+    if ($locationColumns['updated_at']) $values[$locationColumns['updated_at']] = date('Y-m-d H:i:s');
+
+    update_dynamic($pdo, 'doctors_masterlist', $values, 'id = ?', [$doctorId]);
+    audit_log($pdo, 'doctor_location_saved', 'doctor', $doctorId, [
+        'doctor_name' => $doctorName,
+        'latitude' => $lat,
+        'longitude' => $lng,
+        'radius_m' => $radius,
+    ]);
+
+    flash('success', 'Doctor clinic map pin saved.');
+    header('Location: doctor_profile.php?id=' . $doctorId);
+    exit;
+}
+
+$clinicLatitude = $locationColumns['lat'] ? trim((string)($doctor[$locationColumns['lat']] ?? '')) : '';
+$clinicLongitude = $locationColumns['lng'] ? trim((string)($doctor[$locationColumns['lng']] ?? '')) : '';
+$allowedVisitRadius = $locationColumns['radius'] ? (int)($doctor[$locationColumns['radius']] ?? 200) : 200;
+$allowedVisitRadius = $allowedVisitRadius > 0 ? $allowedVisitRadius : 200;
+$clinicLocationSet = $clinicLatitude !== '' && $clinicLongitude !== '';
+$clinicLocationUpdatedAt = $locationColumns['updated_at'] ? trim((string)($doctor[$locationColumns['updated_at']] ?? '')) : '';
+$clinicLocationUpdatedBy = '';
+
+if ($locationColumns['updated_by'] && !empty($doctor[$locationColumns['updated_by']])) {
+    try {
+        $locUserStmt = $pdo->prepare('SELECT name FROM users WHERE id = ? LIMIT 1');
+        $locUserStmt->execute([(int)$doctor[$locationColumns['updated_by']]]);
+        $clinicLocationUpdatedBy = (string)$locUserStmt->fetchColumn();
+    } catch (Throwable $e) {
+        $clinicLocationUpdatedBy = '';
+    }
+}
+
+
 function doctor_profile_like_value(string $value): string
 {
     return '%' . $value . '%';
@@ -205,6 +317,8 @@ $timeline = array_slice($timeline, 0, 30);
 
 render_header('Doctor Profile');
 ?>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
 
 <style>
 .doctor-profile-shell {
@@ -569,6 +683,100 @@ render_header('Doctor Profile');
         grid-template-columns: 1fr;
     }
 }
+
+.doctor-location-map-card {
+    display: grid;
+    gap: 16px;
+}
+
+.doctor-location-status {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.doctor-location-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 7px 11px;
+    border-radius: 999px;
+    border: 1px solid rgba(15, 118, 110, .16);
+    background: #ecfdf5;
+    color: #0f766e;
+    font-size: 12px;
+    font-weight: 950;
+}
+
+.doctor-location-pill.missing {
+    background: #fff7ed;
+    color: #c2410c;
+    border-color: #fed7aa;
+}
+
+.doctor-location-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) auto auto;
+    gap: 10px;
+    align-items: end;
+}
+
+.doctor-location-controls .field,
+.doctor-location-radius-row .field {
+    margin: 0;
+}
+
+.doctor-location-controls input,
+.doctor-location-radius-row input,
+.doctor-location-radius-row select {
+    min-height: 48px;
+    border-radius: 15px;
+}
+
+#doctorClinicMap {
+    height: 380px;
+    min-height: 380px;
+    border-radius: 24px;
+    border: 1px solid rgba(15, 118, 110, .18);
+    overflow: hidden;
+    background: #e2e8f0;
+}
+
+.doctor-location-radius-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 10px;
+    align-items: end;
+}
+
+.doctor-location-help {
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: #f8fffd;
+    border: 1px dashed rgba(15, 118, 110, .22);
+    color: #64748b;
+    font-weight: 800;
+    line-height: 1.5;
+}
+
+@media(max-width: 860px) {
+    .doctor-location-controls,
+    .doctor-location-radius-row {
+        grid-template-columns: 1fr;
+    }
+
+    .doctor-location-controls .btn,
+    .doctor-location-radius-row .btn {
+        width: 100%;
+    }
+
+    #doctorClinicMap {
+        height: 320px;
+        min-height: 320px;
+    }
+}
+
 </style>
 
 <?php
@@ -639,6 +847,79 @@ $avatarInitials = substr($avatarInitials ?: 'DR', 0, 2);
             <a class="btn ghost" href="tasks.php?followup=1&doctor=<?= (int)$doctorId ?>&days=30">Create 30-Day Follow-Up</a>
         </div>
     </section>
+
+    <section class="doctor-profile-panel doctor-location-map-card">
+        <div class="doctor-profile-panel-head">
+            <div>
+                <span class="eyebrow">Clinic Location</span>
+                <h3>Set doctor map pin</h3>
+            </div>
+            <div class="doctor-location-status">
+                <?php if ($clinicLocationSet): ?>
+                    <span class="doctor-location-pill">Location Saved</span>
+                    <a class="btn small ghost" target="_blank" href="<?= e(doctor_profile_maps_url($clinicLatitude, $clinicLongitude)) ?>">Open in Maps</a>
+                <?php else: ?>
+                    <span class="doctor-location-pill missing">Location Not Set</span>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <?php if (!$locationReady): ?>
+            <div class="doctor-location-help">
+                Doctor location columns are not installed yet. Import
+                <strong>database/migrations/2026_06_15_add_doctor_map_pin_location.sql</strong>
+                before using the map pin setup.
+            </div>
+        <?php else: ?>
+            <form method="post" id="doctorLocationForm">
+                <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+                <input type="hidden" name="doctor_location_action" value="save_location">
+                <input type="hidden" name="clinic_latitude" id="clinicLatitude" value="<?= e($clinicLatitude) ?>">
+                <input type="hidden" name="clinic_longitude" id="clinicLongitude" value="<?= e($clinicLongitude) ?>">
+
+                <div class="doctor-location-controls">
+                    <div class="field">
+                        <label>Search clinic / area</label>
+                        <input type="text" id="clinicSearchInput" value="<?= e(trim($doctorName . ' ' . $doctorHospital . ' ' . $doctorPlace)) ?>" placeholder="Search doctor, clinic, hospital, or area">
+                    </div>
+                    <button type="button" class="btn ghost" id="clinicSearchButton">Search Map</button>
+                    <button type="button" class="btn ghost" id="clinicCurrentLocationButton">Use Current Location</button>
+                </div>
+
+                <div id="doctorClinicMap"></div>
+
+                <div class="doctor-location-radius-row">
+                    <div class="field">
+                        <label>Allowed Visit Radius</label>
+                        <select name="allowed_visit_radius_m">
+                            <?php foreach ([100, 200, 300, 500, 1000] as $radiusOption): ?>
+                                <option value="<?= (int)$radiusOption ?>" <?= $allowedVisitRadius === $radiusOption ? 'selected' : '' ?>><?= (int)$radiusOption ?> meters</option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn primary">Save Pin Location</button>
+                    <?php if ($clinicLocationSet): ?>
+                        <button type="submit" class="btn ghost" name="doctor_location_action" value="clear_location" data-confirm="Clear this doctor's saved clinic location?">Clear Location</button>
+                    <?php endif; ?>
+                </div>
+
+                <div class="doctor-location-help">
+                    Drag the pin or click on the map to set the exact clinic location. Reps can also tap
+                    <strong>Use Current Location</strong> while physically at the clinic.
+                    <?php if ($clinicLocationSet): ?>
+                        <br>Saved coordinates: <strong><?= e($clinicLatitude) ?>, <?= e($clinicLongitude) ?></strong>
+                        <?php if ($clinicLocationUpdatedAt): ?>
+                            · Updated <?= e(doctor_profile_date($clinicLocationUpdatedAt)) ?>
+                        <?php endif; ?>
+                        <?php if ($clinicLocationUpdatedBy): ?>
+                            by <?= e($clinicLocationUpdatedBy) ?>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                </div>
+            </form>
+        <?php endif; ?>
+    </section>
+
 
     <section class="doctor-profile-layout">
         <div class="doctor-profile-panel">
@@ -754,5 +1035,124 @@ $avatarInitials = substr($avatarInitials ?: 'DR', 0, 2);
         </div>
     </section>
 </div>
+
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const mapEl = document.getElementById('doctorClinicMap');
+    if (!mapEl || typeof L === 'undefined') return;
+
+    const latInput = document.getElementById('clinicLatitude');
+    const lngInput = document.getElementById('clinicLongitude');
+    const searchInput = document.getElementById('clinicSearchInput');
+    const searchButton = document.getElementById('clinicSearchButton');
+    const currentButton = document.getElementById('clinicCurrentLocationButton');
+
+    const savedLat = parseFloat(latInput.value);
+    const savedLng = parseFloat(lngInput.value);
+    const hasSavedPin = !Number.isNaN(savedLat) && !Number.isNaN(savedLng);
+
+    const defaultLat = hasSavedPin ? savedLat : 14.5995;
+    const defaultLng = hasSavedPin ? savedLng : 120.9842;
+    const defaultZoom = hasSavedPin ? 17 : 11;
+
+    const map = L.map(mapEl).setView([defaultLat, defaultLng], defaultZoom);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const marker = L.marker([defaultLat, defaultLng], {
+        draggable: true
+    }).addTo(map);
+
+    function setPin(lat, lng, zoom = 17) {
+        marker.setLatLng([lat, lng]);
+        map.setView([lat, lng], zoom);
+        latInput.value = Number(lat).toFixed(7);
+        lngInput.value = Number(lng).toFixed(7);
+    }
+
+    if (!hasSavedPin) {
+        latInput.value = '';
+        lngInput.value = '';
+        marker.bindPopup('Drag or click the map to set the clinic pin.').openPopup();
+    } else {
+        marker.bindPopup('Saved clinic location').openPopup();
+    }
+
+    marker.on('dragend', function () {
+        const pos = marker.getLatLng();
+        setPin(pos.lat, pos.lng, map.getZoom());
+    });
+
+    map.on('click', function (event) {
+        setPin(event.latlng.lat, event.latlng.lng, map.getZoom());
+    });
+
+    if (currentButton) {
+        currentButton.addEventListener('click', function () {
+            if (!navigator.geolocation) {
+                alert('Location is not supported by this browser.');
+                return;
+            }
+
+            currentButton.disabled = true;
+            currentButton.textContent = 'Locating...';
+
+            navigator.geolocation.getCurrentPosition(function (position) {
+                setPin(position.coords.latitude, position.coords.longitude, 18);
+                currentButton.disabled = false;
+                currentButton.textContent = 'Use Current Location';
+            }, function () {
+                alert('Unable to get current location. Please allow location access or drag the pin manually.');
+                currentButton.disabled = false;
+                currentButton.textContent = 'Use Current Location';
+            }, {
+                enableHighAccuracy: true,
+                timeout: 12000,
+                maximumAge: 0
+            });
+        });
+    }
+
+    if (searchButton) {
+        searchButton.addEventListener('click', function () {
+            const query = (searchInput.value || '').trim();
+            if (!query) {
+                alert('Enter a clinic, hospital, doctor, or area to search.');
+                return;
+            }
+
+            searchButton.disabled = true;
+            searchButton.textContent = 'Searching...';
+
+            fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(query))
+                .then(response => response.json())
+                .then(results => {
+                    if (!results || !results.length) {
+                        alert('No map result found. Try a more specific clinic, hospital, or city.');
+                        return;
+                    }
+
+                    setPin(parseFloat(results[0].lat), parseFloat(results[0].lon), 17);
+                })
+                .catch(() => {
+                    alert('Map search failed. You can still drag the pin manually.');
+                })
+                .finally(() => {
+                    searchButton.disabled = false;
+                    searchButton.textContent = 'Search Map';
+                });
+        });
+    }
+
+    setTimeout(function () {
+        map.invalidateSize();
+    }, 300);
+});
+</script>
 
 <?php render_footer(); ?>
