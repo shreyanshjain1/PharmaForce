@@ -367,26 +367,43 @@ render_header('Plan Your Day');
 ?>
 
 <style>
-.plan-shell{display:grid;gap:18px}
-.plan-setup{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;align-items:end}
+.plan-shell{display:grid;gap:22px}
+.plan-card{padding:22px}
+.plan-setup{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:18px;align-items:end}
+.plan-control-row{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:18px;align-items:end}
+.plan-shell .field{display:flex;flex-direction:column;gap:8px;margin:0}
+.plan-shell .field label{font-size:12px;line-height:1;font-weight:950;text-transform:uppercase;letter-spacing:.06em;color:#0f766e;margin:0}
+.plan-shell input,
+.plan-shell select,
+.plan-shell textarea{width:100%;min-height:54px;border:1px solid rgba(15,118,110,.18);border-radius:16px;background:#fff;color:#0f172a;font-size:14px;font-weight:750;padding:0 16px;box-shadow:inset 0 1px 0 rgba(255,255,255,.8);outline:none;transition:border-color .18s ease,box-shadow .18s ease,background .18s ease}
+.plan-shell input[type="date"],
+.plan-shell input[type="time"]{font-variant-numeric:tabular-nums}
+.plan-shell input::placeholder{color:#94a3b8;font-weight:700}
+.plan-shell input:focus,
+.plan-shell select:focus,
+.plan-shell textarea:focus{border-color:#0f766e;box-shadow:0 0 0 4px rgba(15,118,110,.11);background:#ffffff}
+.plan-shell select{appearance:auto}
+.plan-shell .btn{min-height:54px;border-radius:16px;padding:0 22px;white-space:nowrap}
 .plan-section{border:1px solid rgba(15,118,110,.12);border-radius:28px;background:#fff;box-shadow:0 16px 32px rgba(15,118,110,.055);overflow:hidden}
-.plan-section-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;padding:18px 20px;border-bottom:1px solid rgba(15,118,110,.1);background:linear-gradient(135deg,#f8fffd,#fff)}
-.plan-section-head h3{margin:0;color:#082f2b}
-.plan-section-head p{margin:6px 0 0;color:#64748b;font-weight:750}
-.plan-doctor-list{display:grid;gap:12px;padding:16px}
-.plan-doctor-card{display:grid;grid-template-columns:auto 1.4fr 1fr 1fr;gap:14px;align-items:start;padding:14px;border:1px solid rgba(15,118,110,.13);border-radius:22px;background:#fbfffe}
+.plan-section-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;padding:20px 22px;border-bottom:1px solid rgba(15,118,110,.1);background:linear-gradient(135deg,#f8fffd,#fff)}
+.plan-section-head h3{margin:0;color:#082f2b;font-size:21px;letter-spacing:-.03em}
+.plan-section-head p{margin:7px 0 0;color:#64748b;font-weight:750}
+.plan-doctor-list{display:grid;gap:12px;padding:18px}
+.plan-doctor-card{display:grid;grid-template-columns:auto 1.35fr 1fr 1fr;gap:16px;align-items:start;padding:16px;border:1px solid rgba(15,118,110,.13);border-radius:22px;background:#fbfffe}
 .plan-doctor-card:hover{border-color:rgba(15,118,110,.28);box-shadow:0 12px 24px rgba(15,118,110,.06)}
 .plan-doctor-main strong{display:block;color:#082f2b;font-size:15px}
 .plan-doctor-main span{display:block;margin-top:5px;color:#64748b;font-weight:750;font-size:12px;line-height:1.4}
-.plan-mini-grid{display:grid;grid-template-columns:1fr;gap:8px}
-.plan-check{width:22px;height:22px;margin-top:4px;accent-color:#0f766e}
+.plan-mini-grid{display:grid;grid-template-columns:1fr;gap:10px}
+.plan-check{width:22px;height:22px;margin-top:12px;accent-color:#0f766e}
 .plan-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.plan-extra-list{display:grid;gap:12px;padding:16px}
-.plan-extra-row{display:grid;grid-template-columns:1.2fr .7fr .8fr .8fr 1fr auto;gap:10px;align-items:end;padding:12px;border:1px solid rgba(15,118,110,.13);border-radius:20px;background:#fbfffe}
-.plan-help{padding:14px 16px;border-radius:20px;background:#ecfdf5;color:#0f766e;font-weight:850;line-height:1.5}
-.plan-empty{padding:28px;text-align:center;color:#64748b;font-weight:850}
-@media(max-width:1100px){.plan-setup{grid-template-columns:1fr 1fr}.plan-doctor-card{grid-template-columns:auto 1fr}.plan-mini-grid{grid-column:2}.plan-extra-row{grid-template-columns:1fr 1fr}}
-@media(max-width:680px){.plan-setup,.plan-doctor-card,.plan-extra-row{grid-template-columns:1fr}.plan-check{width:28px;height:28px}.plan-mini-grid{grid-column:auto}.plan-section-head{display:block}.plan-toolbar{margin-top:12px}}
+.plan-extra-list{display:grid;gap:12px;padding:18px}
+.plan-extra-row{display:grid;grid-template-columns:1.2fr .7fr .8fr .8fr 1fr auto;gap:12px;align-items:end;padding:14px;border:1px solid rgba(15,118,110,.13);border-radius:22px;background:#fbfffe}
+.plan-extra-row .btn{min-height:46px}
+.plan-help{padding:16px 18px;border-radius:20px;background:#ecfdf5;color:#0f766e;font-weight:850;line-height:1.5}
+.plan-empty{padding:32px;text-align:center;color:#64748b;font-weight:850}
+.plan-submit-card{display:flex;gap:10px;align-items:center;justify-content:flex-end;padding:18px}
+@media(max-width:1180px){.plan-setup,.plan-control-row{grid-template-columns:1fr 1fr}.plan-doctor-card{grid-template-columns:auto 1fr}.plan-mini-grid{grid-column:2}.plan-extra-row{grid-template-columns:1fr 1fr}}
+@media(max-width:720px){.plan-setup,.plan-control-row,.plan-doctor-card,.plan-extra-row{grid-template-columns:1fr}.plan-card{padding:18px}.plan-check{width:28px;height:28px;margin-top:0}.plan-mini-grid{grid-column:auto}.plan-section-head{display:block}.plan-toolbar{margin-top:12px}.plan-shell .btn{width:100%}.plan-submit-card{display:grid}}
 </style>
 
 <div class="hero">
@@ -402,7 +419,7 @@ render_header('Plan Your Day');
 </div>
 
 <div class="plan-shell">
-    <section class="card">
+    <section class="card plan-card">
         <form method="get" class="plan-setup">
             <div class="field">
                 <label>Visit Date</label>
@@ -435,8 +452,8 @@ render_header('Plan Your Day');
         <input type="hidden" name="plan_date" value="<?= e($selectedDate) ?>">
         <input type="hidden" name="selected_area" value="<?= e($selectedArea) ?>">
 
-        <section class="card">
-            <div class="plan-setup">
+        <section class="card plan-card">
+            <div class="plan-control-row">
                 <div class="field">
                     <label>Default Purpose</label>
                     <input name="default_purpose" value="Doctor Visit">
@@ -553,7 +570,7 @@ render_header('Plan Your Day');
 
         <br>
 
-        <div class="card">
+        <div class="card plan-submit-card">
             <button type="submit" class="btn primary">Create Day Plan</button>
             <a class="btn ghost" href="tasks.php">Cancel</a>
         </div>
