@@ -857,6 +857,85 @@ render_header('Doctor Profile');
     }
 }
 
+
+/* Doctor map search polish */
+.doctor-location-controls {
+    grid-template-columns: minmax(320px, 1fr) auto auto;
+    gap: 14px;
+    align-items: end;
+    padding: 14px;
+    border: 1px solid rgba(15, 118, 110, .10);
+    border-radius: 24px;
+    background: linear-gradient(135deg, #ffffff, #f8fffd);
+}
+
+.doctor-location-search-wrap label,
+.doctor-location-radius-row label {
+    margin: 0 0 8px;
+    color: #0f766e;
+    font-size: 12px;
+    font-weight: 950;
+    line-height: 1;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.doctor-location-map-card .doctor-location-search-wrap input,
+.doctor-location-map-card .doctor-location-radius-row select {
+    width: 100%;
+    height: 54px;
+    min-height: 54px;
+    border: 1px solid rgba(15, 118, 110, .18) !important;
+    border-radius: 17px !important;
+    background: #ffffff !important;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 800;
+    padding: 0 16px;
+    outline: none;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 8px 18px rgba(15,118,110,.035) !important;
+    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.doctor-location-map-card .doctor-location-search-wrap input:focus,
+.doctor-location-map-card .doctor-location-radius-row select:focus {
+    border-color: #0f766e !important;
+    box-shadow: 0 0 0 4px rgba(15,118,110,.12), 0 8px 18px rgba(15,118,110,.055) !important;
+}
+
+.doctor-location-map-card .doctor-location-controls .btn {
+    height: 54px;
+    min-height: 54px;
+    border-radius: 17px;
+    padding: 0 18px;
+    align-self: end;
+    white-space: nowrap;
+}
+
+.doctor-location-map-card #clinicSearchInput {
+    text-transform: none;
+}
+
+.doctor-location-map-wrap {
+    margin-top: 2px;
+}
+
+#doctorClinicMap {
+    border-radius: 26px;
+    border-color: rgba(15,118,110,.14);
+    box-shadow: 0 18px 38px rgba(15,118,110,.08);
+}
+
+@media(max-width: 980px) {
+    .doctor-location-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .doctor-location-map-card .doctor-location-controls .btn {
+        width: 100%;
+    }
+}
+
 </style>
 
 <?php
