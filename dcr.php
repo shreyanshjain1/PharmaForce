@@ -275,11 +275,21 @@ render_header('Daily Call Report');
 ?>
 
 <style>
-.dcr-metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.dcr-page{display:grid;gap:22px}
+.dcr-card{padding:22px}
+.dcr-filter{display:grid;grid-template-columns:1fr 1.15fr auto auto;gap:18px;align-items:end}
+.dcr-page .field{display:flex;flex-direction:column;gap:8px;margin:0}
+.dcr-page .field label{font-size:12px;line-height:1;font-weight:950;text-transform:uppercase;letter-spacing:.06em;color:#0f766e;margin:0}
+.dcr-page input,
+.dcr-page select{width:100%;min-height:54px;border:1px solid rgba(15,118,110,.18);border-radius:16px;background:#fff;color:#0f172a;font-size:14px;font-weight:800;padding:0 16px;box-shadow:inset 0 1px 0 rgba(255,255,255,.85);outline:none;transition:border-color .18s ease,box-shadow .18s ease,background .18s ease}
+.dcr-page input[type="date"]{font-variant-numeric:tabular-nums}
+.dcr-page input:focus,
+.dcr-page select:focus{border-color:#0f766e;box-shadow:0 0 0 4px rgba(15,118,110,.11);background:#fff}
+.dcr-page .btn{min-height:54px;border-radius:16px;padding:0 22px;white-space:nowrap}
+.dcr-metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px}
 .dcr-metric{padding:18px;border:1px solid rgba(15,118,110,.13);border-radius:24px;background:linear-gradient(145deg,#fff,#fbfffe);box-shadow:0 14px 30px rgba(15,118,110,.055)}
 .dcr-metric span{display:block;color:#64748b;font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.08em}
-.dcr-metric strong{display:block;margin-top:8px;color:#082f2b;font-size:26px;letter-spacing:-.04em}
-.dcr-filter{display:grid;grid-template-columns:1fr 1fr auto auto;gap:14px;align-items:end}
+.dcr-metric strong{display:block;margin-top:8px;color:#082f2b;font-size:28px;letter-spacing:-.04em}
 .dcr-status{display:inline-flex;align-items:center;min-height:30px;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:950;text-transform:capitalize}
 .dcr-status.ok{background:#ecfdf5;color:#15803d;border:1px solid #bbf7d0}
 .dcr-status.bad{background:#fff1f2;color:#be123c;border:1px solid #fecdd3}
@@ -289,9 +299,11 @@ render_header('Daily Call Report');
 .dcr-doctor strong{display:block;color:#082f2b}
 .dcr-doctor span{display:block;margin-top:4px;color:#64748b;font-size:12px;font-weight:750;line-height:1.4}
 .dcr-actions{display:flex;gap:8px;flex-wrap:wrap}
+.dcr-actions .btn{min-height:38px;border-radius:12px;padding:0 12px}
 .dcr-mini{font-size:12px;color:#64748b;font-weight:750}
-@media(max-width:1200px){.dcr-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:780px){.dcr-metrics,.dcr-filter{grid-template-columns:1fr}.dcr-filter .btn{width:100%}}
+.dcr-empty{padding:32px;text-align:center;border:1px dashed rgba(15,118,110,.25);border-radius:20px;background:#fbfffe;color:#64748b;font-weight:850}
+@media(max-width:1200px){.dcr-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.dcr-filter{grid-template-columns:1fr 1fr}}
+@media(max-width:780px){.dcr-metrics,.dcr-filter{grid-template-columns:1fr}.dcr-card{padding:18px}.dcr-page .btn{width:100%}}
 </style>
 
 <div class="hero">
@@ -306,7 +318,9 @@ render_header('Daily Call Report');
     </div>
 </div>
 
-<section class="card">
+<div class="dcr-page">
+
+<section class="card dcr-card">
     <form method="get" class="dcr-filter">
         <div class="field">
             <label>Date</label>
@@ -330,8 +344,6 @@ render_header('Daily Call Report');
     </form>
 </section>
 
-<br>
-
 <section class="dcr-metrics">
     <article class="dcr-metric"><span>Planned</span><strong><?= (int)$plannedCount ?></strong></article>
     <article class="dcr-metric"><span>Reported</span><strong><?= (int)$reportedCount ?></strong></article>
@@ -341,7 +353,7 @@ render_header('Daily Call Report');
     <article class="dcr-metric"><span>Geotagged</span><strong><?= (int)$geotagCount ?></strong></article>
 </section>
 
-<section class="card">
+<section class="card dcr-card">
     <div class="section-title">
         <div>
             <span class="eyebrow">Visit Summary</span>
@@ -350,7 +362,7 @@ render_header('Daily Call Report');
     </div>
 
     <?php if (!$rows): ?>
-        <div class="empty">No planned visits or reports found for this day. Start by using Plan Your Day.</div>
+        <div class="dcr-empty">No planned visits or reports found for this day. Start by using Plan Your Day.</div>
     <?php else: ?>
         <div class="table-wrap">
             <table>
@@ -442,5 +454,7 @@ render_header('Daily Call Report');
         </div>
     <?php endif; ?>
 </section>
+
+</div>
 
 <?php render_footer(); ?>
