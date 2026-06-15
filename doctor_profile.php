@@ -45,6 +45,14 @@ function doctor_profile_location_is_valid(?float $lat, ?float $lng): bool
     return $lat !== null && $lng !== null && $lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180;
 }
 
+function doctor_profile_location_is_inside_philippines(?float $lat, ?float $lng): bool
+{
+    if (!doctor_profile_location_is_valid($lat, $lng)) return false;
+
+    // Approximate Philippines bounding box. This prevents accidental pins outside the country.
+    return $lat >= 4.2 && $lat <= 21.5 && $lng >= 116.0 && $lng <= 127.5;
+}
+
 function doctor_profile_maps_url($lat, $lng): string
 {
     return 'https://www.google.com/maps?q=' . rawurlencode(trim((string)$lat) . ',' . trim((string)$lng));
@@ -88,8 +96,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['doctor_location_action'] ?
     $lng = doctor_profile_float_or_null($_POST['clinic_longitude'] ?? null);
     $radius = max(50, min(2000, (int)($_POST['allowed_visit_radius_m'] ?? 200)));
 
-    if (!doctor_profile_location_is_valid($lat, $lng)) {
-        flash('error', 'Please set a valid map pin before saving.');
+    if (!doctor_profile_location_is_inside_philippines($lat, $lng)) {
+        flash('error', 'Please set a valid clinic map pin inside the Philippines before saving.');
         header('Location: doctor_profile.php?id=' . $doctorId);
         exit;
     }
@@ -760,6 +768,78 @@ render_header('Doctor Profile');
     line-height: 1.5;
 }
 
+
+.doctor-location-search-wrap {
+    position: relative;
+}
+
+.doctor-location-suggestions {
+    position: absolute;
+    z-index: 1200;
+    left: 0;
+    right: 0;
+    top: calc(100% + 8px);
+    display: none;
+    max-height: 280px;
+    overflow: auto;
+    padding: 8px;
+    border: 1px solid rgba(15, 118, 110, .18);
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 18px 44px rgba(15, 118, 110, .16);
+}
+
+.doctor-location-suggestions.is-open {
+    display: grid;
+    gap: 6px;
+}
+
+.doctor-location-suggestion {
+    width: 100%;
+    text-align: left;
+    padding: 11px 12px;
+    border: 0;
+    border-radius: 13px;
+    background: #f8fffd;
+    color: #0f172a;
+    cursor: pointer;
+    font-weight: 850;
+    line-height: 1.35;
+}
+
+.doctor-location-suggestion:hover {
+    background: #ecfdf5;
+    color: #0f766e;
+}
+
+.doctor-location-suggestion small {
+    display: block;
+    margin-top: 3px;
+    color: #64748b;
+    font-weight: 750;
+}
+
+.doctor-location-map-note {
+    position: absolute;
+    z-index: 800;
+    left: 14px;
+    bottom: 14px;
+    max-width: 360px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, .94);
+    border: 1px solid rgba(15, 118, 110, .16);
+    box-shadow: 0 12px 28px rgba(15, 118, 110, .12);
+    color: #0f766e;
+    font-size: 12px;
+    font-weight: 900;
+    pointer-events: none;
+}
+
+.doctor-location-map-wrap {
+    position: relative;
+}
+
 @media(max-width: 860px) {
     .doctor-location-controls,
     .doctor-location-radius-row {
@@ -878,15 +958,19 @@ $avatarInitials = substr($avatarInitials ?: 'DR', 0, 2);
                 <input type="hidden" name="clinic_longitude" id="clinicLongitude" value="<?= e($clinicLongitude) ?>">
 
                 <div class="doctor-location-controls">
-                    <div class="field">
-                        <label>Search clinic / area</label>
-                        <input type="text" id="clinicSearchInput" value="<?= e(trim($doctorName . ' ' . $doctorHospital . ' ' . $doctorPlace)) ?>" placeholder="Search doctor, clinic, hospital, or area">
+                    <div class="field doctor-location-search-wrap">
+                        <label>Search Philippine clinic / area</label>
+                        <input type="text" id="clinicSearchInput" value="<?= e(trim($doctorName . ' ' . $doctorHospital . ' ' . $doctorPlace)) ?>" placeholder="Type clinic, hospital, city, or barangay">
+                        <div class="doctor-location-suggestions" id="clinicSearchSuggestions"></div>
                     </div>
-                    <button type="button" class="btn ghost" id="clinicSearchButton">Search Map</button>
+                    <button type="button" class="btn ghost" id="clinicSearchButton">Search PH Map</button>
                     <button type="button" class="btn ghost" id="clinicCurrentLocationButton">Use Current Location</button>
                 </div>
 
-                <div id="doctorClinicMap"></div>
+                <div class="doctor-location-map-wrap">
+                    <div id="doctorClinicMap"></div>
+                    <div class="doctor-location-map-note">Philippines-only map search. Click or drag the pin to the clinic location.</div>
+                </div>
 
                 <div class="doctor-location-radius-row">
                     <div class="field">
@@ -904,7 +988,7 @@ $avatarInitials = substr($avatarInitials ?: 'DR', 0, 2);
                 </div>
 
                 <div class="doctor-location-help">
-                    Drag the pin or click on the map to set the exact clinic location. Reps can also tap
+                    Search suggestions are limited to the Philippines. Drag the pin or click on the map to set the exact clinic location. Reps can also tap
                     <strong>Use Current Location</strong> while physically at the clinic.
                     <?php if ($clinicLocationSet): ?>
                         <br>Saved coordinates: <strong><?= e($clinicLatitude) ?>, <?= e($clinicLongitude) ?></strong>
@@ -1048,16 +1132,27 @@ document.addEventListener('DOMContentLoaded', function () {
     const searchInput = document.getElementById('clinicSearchInput');
     const searchButton = document.getElementById('clinicSearchButton');
     const currentButton = document.getElementById('clinicCurrentLocationButton');
+    const suggestionsBox = document.getElementById('clinicSearchSuggestions');
+
+    // Philippines bounding box only.
+    const phBounds = L.latLngBounds(
+        L.latLng(4.2, 116.0),
+        L.latLng(21.5, 127.5)
+    );
 
     const savedLat = parseFloat(latInput.value);
     const savedLng = parseFloat(lngInput.value);
     const hasSavedPin = !Number.isNaN(savedLat) && !Number.isNaN(savedLng);
 
-    const defaultLat = hasSavedPin ? savedLat : 14.5995;
-    const defaultLng = hasSavedPin ? savedLng : 120.9842;
-    const defaultZoom = hasSavedPin ? 17 : 11;
+    const defaultLat = hasSavedPin ? savedLat : 12.8797;
+    const defaultLng = hasSavedPin ? savedLng : 121.7740;
+    const defaultZoom = hasSavedPin ? 17 : 6;
 
-    const map = L.map(mapEl).setView([defaultLat, defaultLng], defaultZoom);
+    const map = L.map(mapEl, {
+        maxBounds: phBounds,
+        maxBoundsViscosity: 0.9,
+        minZoom: 5
+    }).setView([defaultLat, defaultLng], defaultZoom);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
@@ -1068,17 +1163,106 @@ document.addEventListener('DOMContentLoaded', function () {
         draggable: true
     }).addTo(map);
 
+    function isInsidePhilippines(lat, lng) {
+        return phBounds.contains(L.latLng(lat, lng));
+    }
+
     function setPin(lat, lng, zoom = 17) {
+        lat = parseFloat(lat);
+        lng = parseFloat(lng);
+
+        if (Number.isNaN(lat) || Number.isNaN(lng) || !isInsidePhilippines(lat, lng)) {
+            alert('Please select a location inside the Philippines.');
+            return;
+        }
+
         marker.setLatLng([lat, lng]);
         map.setView([lat, lng], zoom);
         latInput.value = Number(lat).toFixed(7);
         lngInput.value = Number(lng).toFixed(7);
     }
 
+    function closeSuggestions() {
+        if (!suggestionsBox) return;
+        suggestionsBox.classList.remove('is-open');
+        suggestionsBox.innerHTML = '';
+    }
+
+    function renderSuggestions(results) {
+        if (!suggestionsBox) return;
+
+        suggestionsBox.innerHTML = '';
+
+        if (!results || !results.length) {
+            suggestionsBox.classList.add('is-open');
+            suggestionsBox.innerHTML = '<button type="button" class="doctor-location-suggestion">No Philippine results found<small>Try a more specific clinic, hospital, city, or barangay.</small></button>';
+            return;
+        }
+
+        results.forEach(function (item) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'doctor-location-suggestion';
+
+            const display = item.display_name || 'Map result';
+            const parts = display.split(',').map(part => part.trim()).filter(Boolean);
+            const title = parts.slice(0, 2).join(', ') || display;
+            const subtitle = parts.slice(2, 7).join(', ');
+
+            button.innerHTML = title + (subtitle ? '<small>' + subtitle + '</small>' : '');
+            button.addEventListener('click', function () {
+                setPin(item.lat, item.lon, 17);
+                searchInput.value = display;
+                closeSuggestions();
+            });
+
+            suggestionsBox.appendChild(button);
+        });
+
+        suggestionsBox.classList.add('is-open');
+    }
+
+    let suggestionTimer = null;
+    let lastController = null;
+
+    function searchPhilippines(query, limit = 6) {
+        query = (query || '').trim();
+        if (!query) return Promise.resolve([]);
+
+        if (lastController) {
+            lastController.abort();
+        }
+
+        lastController = new AbortController();
+
+        const params = new URLSearchParams({
+            format: 'jsonv2',
+            q: query + ', Philippines',
+            countrycodes: 'ph',
+            addressdetails: '1',
+            limit: String(limit),
+            bounded: '1',
+            viewbox: '116.0,21.5,127.5,4.2'
+        });
+
+        return fetch('https://nominatim.openstreetmap.org/search?' + params.toString(), {
+            signal: lastController.signal,
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+            .then(response => response.json())
+            .then(results => (results || []).filter(item => isInsidePhilippines(parseFloat(item.lat), parseFloat(item.lon))))
+            .catch(error => {
+                if (error.name === 'AbortError') return [];
+                throw error;
+            });
+    }
+
     if (!hasSavedPin) {
         latInput.value = '';
         lngInput.value = '';
-        marker.bindPopup('Drag or click the map to set the clinic pin.').openPopup();
+        marker.bindPopup('Search, drag, or click the map to set the clinic pin.').openPopup();
     } else {
         marker.bindPopup('Saved clinic location').openPopup();
     }
@@ -1092,6 +1276,37 @@ document.addEventListener('DOMContentLoaded', function () {
         setPin(event.latlng.lat, event.latlng.lng, map.getZoom());
     });
 
+    if (searchInput && suggestionsBox) {
+        searchInput.addEventListener('input', function () {
+            const query = searchInput.value.trim();
+
+            clearTimeout(suggestionTimer);
+
+            if (query.length < 3) {
+                closeSuggestions();
+                return;
+            }
+
+            suggestionTimer = setTimeout(function () {
+                searchPhilippines(query, 6).then(renderSuggestions).catch(function () {
+                    closeSuggestions();
+                });
+            }, 450);
+        });
+
+        searchInput.addEventListener('focus', function () {
+            if (suggestionsBox.innerHTML.trim() !== '') {
+                suggestionsBox.classList.add('is-open');
+            }
+        });
+
+        document.addEventListener('click', function (event) {
+            if (!event.target.closest('.doctor-location-search-wrap')) {
+                closeSuggestions();
+            }
+        });
+    }
+
     if (currentButton) {
         currentButton.addEventListener('click', function () {
             if (!navigator.geolocation) {
@@ -1103,7 +1318,15 @@ document.addEventListener('DOMContentLoaded', function () {
             currentButton.textContent = 'Locating...';
 
             navigator.geolocation.getCurrentPosition(function (position) {
-                setPin(position.coords.latitude, position.coords.longitude, 18);
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+
+                if (!isInsidePhilippines(lat, lng)) {
+                    alert('Your current location appears to be outside the Philippines.');
+                } else {
+                    setPin(lat, lng, 18);
+                }
+
                 currentButton.disabled = false;
                 currentButton.textContent = 'Use Current Location';
             }, function () {
@@ -1122,35 +1345,53 @@ document.addEventListener('DOMContentLoaded', function () {
         searchButton.addEventListener('click', function () {
             const query = (searchInput.value || '').trim();
             if (!query) {
-                alert('Enter a clinic, hospital, doctor, or area to search.');
+                alert('Enter a clinic, hospital, doctor, city, or barangay to search.');
                 return;
             }
 
             searchButton.disabled = true;
             searchButton.textContent = 'Searching...';
 
-            fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(query))
-                .then(response => response.json())
+            searchPhilippines(query, 1)
                 .then(results => {
                     if (!results || !results.length) {
-                        alert('No map result found. Try a more specific clinic, hospital, or city.');
+                        alert('No Philippine map result found. Try a more specific clinic, hospital, city, or barangay.');
                         return;
                     }
 
-                    setPin(parseFloat(results[0].lat), parseFloat(results[0].lon), 17);
+                    setPin(results[0].lat, results[0].lon, 17);
+                    searchInput.value = results[0].display_name || query;
+                    closeSuggestions();
                 })
                 .catch(() => {
                     alert('Map search failed. You can still drag the pin manually.');
                 })
                 .finally(() => {
                     searchButton.disabled = false;
-                    searchButton.textContent = 'Search Map';
+                    searchButton.textContent = 'Search PH Map';
                 });
+        });
+    }
+
+    const locationForm = document.getElementById('doctorLocationForm');
+    if (locationForm) {
+        locationForm.addEventListener('submit', function (event) {
+            const clicked = event.submitter;
+            if (clicked && clicked.value === 'clear_location') return;
+
+            const lat = parseFloat(latInput.value);
+            const lng = parseFloat(lngInput.value);
+
+            if (Number.isNaN(lat) || Number.isNaN(lng) || !isInsidePhilippines(lat, lng)) {
+                event.preventDefault();
+                alert('Please set a clinic pin inside the Philippines before saving.');
+            }
         });
     }
 
     setTimeout(function () {
         map.invalidateSize();
+        map.setMaxBounds(phBounds);
     }, 300);
 });
 </script>
