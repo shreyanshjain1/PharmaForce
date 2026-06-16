@@ -28,6 +28,47 @@ if (!$r) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_permission('reports.review');
+
+    $reportPostAction = $_POST['report_post_action'] ?? 'manager_review';
+
+    if ($reportPostAction === 'visit_verification') {
+        $verificationColumns = table_columns($pdo, 'reports');
+
+        if (!in_array('visit_verification_status', $verificationColumns, true)) {
+            flash('error', 'Visit verification columns are not installed yet. Import the verification migration first.');
+            header('Location: report_view.php?id=' . $id);
+            exit;
+        }
+
+        $manualStatus = $_POST['visit_verification_status'] ?? 'manual_review';
+        $allowedManualStatuses = ['manual_verified', 'manual_rejected', 'manual_review'];
+
+        if (!in_array($manualStatus, $allowedManualStatuses, true)) {
+            $manualStatus = 'manual_review';
+        }
+
+        $manualComment = trim((string)($_POST['visit_verification_comment'] ?? ''));
+
+        $manualValues = [
+            'visit_verification_status' => $manualStatus,
+            'visit_verification_method' => 'manual',
+            'visit_verification_comment' => $manualComment,
+            'visit_verification_reviewed_by' => (int)(current_user()['id'] ?? 0),
+            'visit_verification_reviewed_at' => date('Y-m-d H:i:s'),
+        ];
+
+        update_dynamic($pdo, 'reports', $manualValues, 'id = ?', [$id]);
+
+        audit_log($pdo, 'visit_verification_manual_reviewed', 'report', $id, [
+            'status' => $manualStatus,
+            'comment_added' => $manualComment !== '',
+        ]);
+
+        flash('success', 'Visit verification review saved.');
+        header('Location: report_view.php?id=' . $id);
+        exit;
+    }
+
     $status = normalize_status($_POST['status'] ?? 'pending');
     $comment = trim($_POST['manager_comment'] ?? '');
 
@@ -111,6 +152,161 @@ function report_geo_map_url($lat, $lng): string
     return 'https://www.google.com/maps?q=' . rawurlencode($lat . ',' . $lng);
 }
 
+function report_geo_float($value): ?float
+{
+    $value = trim((string)$value);
+    if ($value === '' || !is_numeric($value)) return null;
+    return (float)$value;
+}
+
+function report_geo_distance_m(?float $lat1, ?float $lng1, ?float $lat2, ?float $lng2): ?float
+{
+    if ($lat1 === null || $lng1 === null || $lat2 === null || $lng2 === null) return null;
+
+    $earthRadius = 6371000;
+    $dLat = deg2rad($lat2 - $lat1);
+    $dLng = deg2rad($lng2 - $lng1);
+    $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
+    $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+    return $earthRadius * $c;
+}
+
+function report_verification_label(string $status): string
+{
+    return [
+        'verified' => 'Verified Visit',
+        'outside_radius' => 'Outside Radius',
+        'doctor_pin_missing' => 'Doctor Pin Missing',
+        'signature_missing' => 'Signature Location Missing',
+        'manual_verified' => 'Manually Verified',
+        'manual_rejected' => 'Manually Rejected',
+        'manual_review' => 'Manual Review Needed',
+        'unavailable' => 'Unavailable',
+    ][$status] ?? 'Manual Review Needed';
+}
+
+function report_verification_class(string $status): string
+{
+    return [
+        'verified' => 'verified',
+        'manual_verified' => 'verified',
+        'outside_radius' => 'outside',
+        'manual_rejected' => 'outside',
+        'doctor_pin_missing' => 'review',
+        'signature_missing' => 'review',
+        'manual_review' => 'review',
+        'unavailable' => 'review',
+    ][$status] ?? 'review';
+}
+
+function report_fetch_doctor_pin(PDO $pdo, array $report): array
+{
+    $doctorId = (int)($report['doctor_id'] ?? 0);
+    if ($doctorId <= 0) {
+        return ['has_pin' => false, 'reason' => 'No linked masterlist doctor'];
+    }
+
+    if (!column_exists($pdo, 'doctors_masterlist', 'clinic_latitude') || !column_exists($pdo, 'doctors_masterlist', 'clinic_longitude')) {
+        return ['has_pin' => false, 'reason' => 'Doctor location columns not installed'];
+    }
+
+    try {
+        $radiusSelect = column_exists($pdo, 'doctors_masterlist', 'allowed_visit_radius_m') ? 'allowed_visit_radius_m' : '200 AS allowed_visit_radius_m';
+        $stmt = $pdo->prepare("SELECT clinic_latitude, clinic_longitude, {$radiusSelect} FROM doctors_masterlist WHERE id = ? LIMIT 1");
+        $stmt->execute([$doctorId]);
+        $doctor = $stmt->fetch();
+
+        if (!$doctor) {
+            return ['has_pin' => false, 'reason' => 'Doctor not found in masterlist'];
+        }
+
+        $lat = report_geo_float($doctor['clinic_latitude'] ?? null);
+        $lng = report_geo_float($doctor['clinic_longitude'] ?? null);
+
+        if ($lat === null || $lng === null) {
+            return ['has_pin' => false, 'reason' => 'No saved clinic pin'];
+        }
+
+        $radius = (int)($doctor['allowed_visit_radius_m'] ?? 200);
+        $radius = $radius > 0 ? $radius : 200;
+
+        return [
+            'has_pin' => true,
+            'lat' => $lat,
+            'lng' => $lng,
+            'radius_m' => $radius,
+            'reason' => '',
+        ];
+    } catch (Throwable $e) {
+        return ['has_pin' => false, 'reason' => 'Unable to load doctor pin'];
+    }
+}
+
+function report_visit_verification(PDO $pdo, array $report): array
+{
+    $manualStatus = trim((string)($report['visit_verification_status'] ?? ''));
+    $manualMethod = trim((string)($report['visit_verification_method'] ?? ''));
+
+    if ($manualMethod === 'manual' && in_array($manualStatus, ['manual_verified', 'manual_rejected', 'manual_review'], true)) {
+        return [
+            'status' => $manualStatus,
+            'label' => report_verification_label($manualStatus),
+            'class' => report_verification_class($manualStatus),
+            'method' => 'Manual manager review',
+            'distance_m' => $report['visit_verification_distance_m'] ?? null,
+            'radius_m' => null,
+            'doctor_pin' => report_fetch_doctor_pin($pdo, $report),
+            'comment' => trim((string)($report['visit_verification_comment'] ?? '')),
+        ];
+    }
+
+    $sigLat = report_geo_float($report['signature_latitude'] ?? null);
+    $sigLng = report_geo_float($report['signature_longitude'] ?? null);
+    $doctorPin = report_fetch_doctor_pin($pdo, $report);
+
+    if ($sigLat === null || $sigLng === null) {
+        return [
+            'status' => 'signature_missing',
+            'label' => report_verification_label('signature_missing'),
+            'class' => report_verification_class('signature_missing'),
+            'method' => 'Automatic check',
+            'distance_m' => null,
+            'radius_m' => $doctorPin['radius_m'] ?? null,
+            'doctor_pin' => $doctorPin,
+            'comment' => 'The report can still be reviewed manually, but no signature geotag was captured.',
+        ];
+    }
+
+    if (empty($doctorPin['has_pin'])) {
+        return [
+            'status' => 'doctor_pin_missing',
+            'label' => report_verification_label('doctor_pin_missing'),
+            'class' => report_verification_class('doctor_pin_missing'),
+            'method' => 'Manual review required',
+            'distance_m' => null,
+            'radius_m' => null,
+            'doctor_pin' => $doctorPin,
+            'comment' => $doctorPin['reason'] ?? 'The doctor does not have a saved clinic pin yet.',
+        ];
+    }
+
+    $distance = report_geo_distance_m($doctorPin['lat'], $doctorPin['lng'], $sigLat, $sigLng);
+    $radius = (int)($doctorPin['radius_m'] ?? 200);
+    $status = ($distance !== null && $distance <= $radius) ? 'verified' : 'outside_radius';
+
+    return [
+        'status' => $status,
+        'label' => report_verification_label($status),
+        'class' => report_verification_class($status),
+        'method' => 'Automatic geofence',
+        'distance_m' => $distance,
+        'radius_m' => $radius,
+        'doctor_pin' => $doctorPin,
+        'comment' => '',
+    ];
+}
+
 
 $hasAttachment = $attachmentPath !== '';
 $attachmentIsImage = is_image_attachment($attachmentPath);
@@ -122,6 +318,12 @@ $signatureLocationStatus = trim((string)($r['signature_location_status'] ?? ''))
 $hasSignatureLocation = $signatureLatitude !== '' && $signatureLongitude !== '';
 $signatureLocationLabel = $hasSignatureLocation ? 'Location Captured' : report_geo_status_label($signatureLocationStatus);
 $signatureLocationMap = $hasSignatureLocation ? report_geo_map_url($signatureLatitude, $signatureLongitude) : '';
+
+$visitVerification = report_visit_verification($pdo, $r);
+$verificationColumnsReady = column_exists($pdo, 'reports', 'visit_verification_status');
+$verificationDistanceLabel = $visitVerification['distance_m'] !== null ? number_format((float)$visitVerification['distance_m'], 0) . ' meters' : 'Not available';
+$verificationRadiusLabel = !empty($visitVerification['radius_m']) ? number_format((int)$visitVerification['radius_m']) . ' meters' : 'Not available';
+$verificationDoctorPin = $visitVerification['doctor_pin'] ?? ['has_pin' => false];
 
 
 $createdAt = $r['created_at'] ?? null;
@@ -667,6 +869,101 @@ render_header('Report Details');
             display: none !important;
         }
     }
+
+    .visit-verification-card {
+        border: 1px solid rgba(15, 118, 110, .14);
+        border-radius: 24px;
+        background: linear-gradient(145deg, #ffffff, #fbfffe);
+        padding: 18px;
+        box-shadow: 0 14px 32px rgba(15, 118, 110, .055);
+    }
+
+    .visit-verification-status {
+        display: inline-flex;
+        align-items: center;
+        min-height: 34px;
+        padding: 7px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 950;
+    }
+
+    .visit-verification-status.verified {
+        background: #ecfdf5;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+    }
+
+    .visit-verification-status.outside {
+        background: #fff1f2;
+        color: #be123c;
+        border: 1px solid #fecdd3;
+    }
+
+    .visit-verification-status.review {
+        background: #fff7ed;
+        color: #c2410c;
+        border: 1px solid #fed7aa;
+    }
+
+    .visit-verification-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 14px;
+    }
+
+    .visit-verification-field {
+        padding: 14px;
+        border-radius: 18px;
+        background: #f8fffd;
+        border: 1px solid rgba(15, 118, 110, .10);
+    }
+
+    .visit-verification-field span {
+        display: block;
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .07em;
+    }
+
+    .visit-verification-field strong {
+        display: block;
+        margin-top: 7px;
+        color: #082f2b;
+        font-size: 15px;
+    }
+
+    .visit-verification-note {
+        margin-top: 14px;
+        padding: 13px 14px;
+        border-radius: 18px;
+        background: #fff7ed;
+        color: #9a3412;
+        font-weight: 800;
+        line-height: 1.5;
+    }
+
+    .visit-verification-form {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid rgba(15, 118, 110, .12);
+    }
+
+    @media(max-width: 900px) {
+        .visit-verification-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+
+    @media(max-width: 560px) {
+        .visit-verification-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
 </style>
 
 <div class="report-page">
@@ -934,9 +1231,75 @@ render_header('Report Details');
         </div>
     </section>
 
+    <section class="report-section">
+        <div class="report-section-head">
+            <div>
+                <span class="eyebrow">Visit Verification</span>
+                <h3>Clinic Pin vs Signature Location</h3>
+            </div>
+            <span class="visit-verification-status <?= e($visitVerification['class']) ?>"><?= e($visitVerification['label']) ?></span>
+        </div>
+        <div class="report-section-content">
+            <div class="visit-verification-card">
+                <div class="visit-verification-grid">
+                    <div class="visit-verification-field">
+                        <span>Verification Method</span>
+                        <strong><?= e($visitVerification['method']) ?></strong>
+                    </div>
+                    <div class="visit-verification-field">
+                        <span>Distance From Clinic</span>
+                        <strong><?= e($verificationDistanceLabel) ?></strong>
+                    </div>
+                    <div class="visit-verification-field">
+                        <span>Allowed Radius</span>
+                        <strong><?= e($verificationRadiusLabel) ?></strong>
+                    </div>
+                    <div class="visit-verification-field">
+                        <span>Doctor Clinic Pin</span>
+                        <strong><?= !empty($verificationDoctorPin['has_pin']) ? 'Saved' : 'Missing' ?></strong>
+                    </div>
+                </div>
+
+                <?php if (!empty($visitVerification['comment'])): ?>
+                    <div class="visit-verification-note"><?= nl2br(e($visitVerification['comment'])) ?></div>
+                <?php endif; ?>
+
+                <?php if ($verificationColumnsReady && can('reports.review')): ?>
+                    <form method="post" class="visit-verification-form no-print">
+                        <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+                        <input type="hidden" name="report_post_action" value="visit_verification">
+
+                        <div class="manager-review-grid">
+                            <div class="field">
+                                <label>Manual Verification</label>
+                                <select name="visit_verification_status">
+                                    <?php foreach (['manual_review' => 'Manual Review Needed', 'manual_verified' => 'Manually Verified', 'manual_rejected' => 'Manually Rejected'] as $statusValue => $statusLabel): ?>
+                                        <option value="<?= e($statusValue) ?>" <?= ($r['visit_verification_status'] ?? '') === $statusValue ? 'selected' : '' ?>><?= e($statusLabel) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div class="field">
+                                <label>Manager Verification Comment</label>
+                                <textarea name="visit_verification_comment" rows="3" placeholder="Example: Verified through call, photo, known hospital route, or manager confirmation."><?= e($r['visit_verification_comment'] ?? '') ?></textarea>
+                            </div>
+
+                            <button class="btn primary" data-confirm="Save this manual visit verification decision?" data-confirm-title="Save Visit Verification" data-confirm-ok="Save Verification">Save Verification</button>
+                        </div>
+                    </form>
+                <?php elseif (can('reports.review')): ?>
+                    <div class="visit-verification-note no-print">
+                        Manual verification storage is not installed yet. Import the visit verification migration to allow managers to save manual verification decisions.
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </section>
+
     <?php if (can('reports.review')): ?>
         <form class="manager-review-card no-print" method="post">
             <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+            <input type="hidden" name="report_post_action" value="manager_review">
 
             <div class="section-title">
                 <div>

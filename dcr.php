@@ -64,6 +64,65 @@ function dcr_has_signature(array $report): bool
     return trim((string)($report['signature_path'] ?? '')) !== '';
 }
 
+function dcr_geo_float($value): ?float
+{
+    $value = trim((string)$value);
+    if ($value === '' || !is_numeric($value)) return null;
+    return (float)$value;
+}
+
+function dcr_geo_distance_m(?float $lat1, ?float $lng1, ?float $lat2, ?float $lng2): ?float
+{
+    if ($lat1 === null || $lng1 === null || $lat2 === null || $lng2 === null) return null;
+
+    $earthRadius = 6371000;
+    $dLat = deg2rad($lat2 - $lat1);
+    $dLng = deg2rad($lng2 - $lng1);
+    $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
+    $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+    return $earthRadius * $c;
+}
+
+function dcr_visit_verification(array $report, array $doctorPins): array
+{
+    $manualStatus = trim((string)($report['visit_verification_status'] ?? ''));
+    $manualMethod = trim((string)($report['visit_verification_method'] ?? ''));
+
+    if ($manualMethod === 'manual' && in_array($manualStatus, ['manual_verified', 'manual_rejected', 'manual_review'], true)) {
+        return [
+            'label' => [
+                'manual_verified' => 'Manual Verified',
+                'manual_rejected' => 'Manual Rejected',
+                'manual_review' => 'Manual Review',
+            ][$manualStatus],
+            'class' => $manualStatus === 'manual_verified' ? 'ok' : ($manualStatus === 'manual_rejected' ? 'bad' : 'warn'),
+        ];
+    }
+
+    $sigLat = dcr_geo_float($report['signature_latitude'] ?? null);
+    $sigLng = dcr_geo_float($report['signature_longitude'] ?? null);
+
+    if ($sigLat === null || $sigLng === null) {
+        return ['label' => 'No Signature Loc', 'class' => 'warn'];
+    }
+
+    $doctorId = (int)($report['doctor_id'] ?? 0);
+    if ($doctorId <= 0 || empty($doctorPins[$doctorId]['has_pin'])) {
+        return ['label' => 'No Doctor Pin', 'class' => 'warn'];
+    }
+
+    $pin = $doctorPins[$doctorId];
+    $distance = dcr_geo_distance_m((float)$pin['lat'], (float)$pin['lng'], $sigLat, $sigLng);
+    $radius = (int)($pin['radius_m'] ?? 200);
+
+    if ($distance !== null && $distance <= $radius) {
+        return ['label' => 'Verified', 'class' => 'ok'];
+    }
+
+    return ['label' => 'Outside Radius', 'class' => 'bad'];
+}
+
 $selectedDate = dcr_date_input((string)($_GET['date'] ?? date('Y-m-d')));
 $selectedUser = (int)($_GET['user_id'] ?? 0);
 $current = current_user();
@@ -166,6 +225,30 @@ if ($reportDateCol) {
     $reports = $stmt->fetchAll();
 }
 
+$doctorPins = [];
+$doctorIdsForPins = array_values(array_unique(array_filter(array_map(static fn($report) => (int)($report['doctor_id'] ?? 0), $reports))));
+
+if ($doctorIdsForPins && column_exists($pdo, 'doctors_masterlist', 'clinic_latitude') && column_exists($pdo, 'doctors_masterlist', 'clinic_longitude')) {
+    try {
+        $radiusSelect = column_exists($pdo, 'doctors_masterlist', 'allowed_visit_radius_m') ? 'allowed_visit_radius_m' : '200 AS allowed_visit_radius_m';
+        $placeholders = implode(',', array_fill(0, count($doctorIdsForPins), '?'));
+        $pinStmt = $pdo->prepare("SELECT id, clinic_latitude, clinic_longitude, {$radiusSelect} FROM doctors_masterlist WHERE id IN ($placeholders)");
+        $pinStmt->execute($doctorIdsForPins);
+        foreach ($pinStmt->fetchAll() as $pinRow) {
+            $lat = dcr_geo_float($pinRow['clinic_latitude'] ?? null);
+            $lng = dcr_geo_float($pinRow['clinic_longitude'] ?? null);
+            $doctorPins[(int)$pinRow['id']] = [
+                'has_pin' => $lat !== null && $lng !== null,
+                'lat' => $lat,
+                'lng' => $lng,
+                'radius_m' => (int)($pinRow['allowed_visit_radius_m'] ?? 200) ?: 200,
+            ];
+        }
+    } catch (Throwable $e) {
+        $doctorPins = [];
+    }
+}
+
 $reportsByUserDoctor = [];
 $reportsByUserText = [];
 foreach ($reports as $report) {
@@ -261,7 +344,7 @@ $plannedCount = count($plans);
 $reportedCount = count(array_filter($rows, static fn($row) => $row['report']));
 $pendingCount = count(array_filter($rows, static fn($row) => !$row['report'] && in_array($row['completion'], ['pending', 'to do', 'in progress'], true)));
 $missedCount = count(array_filter($rows, static fn($row) => $row['completion'] === 'missed'));
-$geotagCount = count(array_filter($rows, static fn($row) => $row['report'] && dcr_has_geotag($row['report'])));
+$geotagCount = count(array_filter($rows, static fn($row) => $row['report'] && dcr_visit_verification($row['report'], $doctorPins)['class'] === 'ok'));
 $signatureCount = count(array_filter($rows, static fn($row) => $row['report'] && dcr_has_signature($row['report'])));
 
 audit_log($pdo, 'dcr_viewed', 'dcr', null, [
@@ -350,7 +433,7 @@ render_header('Daily Call Report');
     <article class="dcr-metric"><span>Pending</span><strong><?= (int)$pendingCount ?></strong></article>
     <article class="dcr-metric"><span>Missed</span><strong><?= (int)$missedCount ?></strong></article>
     <article class="dcr-metric"><span>Signatures</span><strong><?= (int)$signatureCount ?></strong></article>
-    <article class="dcr-metric"><span>Geotagged</span><strong><?= (int)$geotagCount ?></strong></article>
+    <article class="dcr-metric"><span>Verified</span><strong><?= (int)$geotagCount ?></strong></article>
 </section>
 
 <section class="card dcr-card">
@@ -420,10 +503,9 @@ render_header('Daily Call Report');
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <?php if ($report && dcr_has_geotag($report)): ?>
-                                    <span class="dcr-status ok">Captured</span>
-                                <?php elseif ($report): ?>
-                                    <span class="dcr-status warn">Missing</span>
+                                <?php if ($report): ?>
+                                    <?php $dcrVerification = dcr_visit_verification($report, $doctorPins); ?>
+                                    <span class="dcr-status <?= e($dcrVerification['class']) ?>"><?= e($dcrVerification['label']) ?></span>
                                 <?php else: ?>
                                     <span class="dcr-status pending">Pending</span>
                                 <?php endif; ?>
