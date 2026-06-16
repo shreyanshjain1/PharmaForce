@@ -531,6 +531,298 @@ render_header('Dashboard');
   }
 }
 
+
+/* Dashboard calendar compact task stack */
+.calendar-large .cal-day {
+  position: relative;
+  min-height: 116px;
+  max-height: 126px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.calendar-large .day-num {
+  flex: 0 0 auto;
+}
+
+.calendar-large .cal-item {
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 25px;
+  max-height: 25px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 15px;
+  font-size: 11px;
+}
+
+.calendar-large .cal-more {
+  flex: 0 0 auto;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 4px 8px;
+  border: 1px solid rgba(15, 118, 110, .18);
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #0f766e;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 14px;
+  cursor: pointer;
+  box-shadow: 0 8px 16px rgba(15, 118, 110, .08);
+}
+
+.calendar-large .cal-more:hover {
+  background: #ccfbf1;
+  transform: translateY(-1px);
+}
+
+.day-task-list {
+  display: grid;
+  gap: 9px;
+  margin-top: 8px;
+}
+
+.day-task-button {
+  width: 100%;
+  text-align: left;
+  border: 1px solid rgba(15, 118, 110, .13);
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.day-task-button:hover {
+  background: #f8fffd;
+  border-color: rgba(15, 118, 110, .28);
+}
+
+.day-task-button strong {
+  display: block;
+  color: #082f2b;
+  font-size: 14px;
+}
+
+.day-task-button span {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+@media (max-width: 900px) {
+  .calendar-large .cal-day {
+    min-height: 104px;
+    max-height: 116px;
+  }
+
+  .calendar-large .cal-item {
+    min-height: 24px;
+    max-height: 24px;
+  }
+}
+
+
+/* Dashboard calendar overflow fix v2 */
+.calendar-large {
+  align-items: stretch;
+}
+
+.calendar-large .cal-day {
+  min-height: 112px !important;
+  max-height: 112px !important;
+  height: 112px !important;
+  padding: 12px 10px 10px !important;
+  overflow: hidden !important;
+  display: grid !important;
+  grid-template-rows: 24px 25px 25px 26px;
+  gap: 5px !important;
+  align-content: start;
+}
+
+.calendar-large .cal-day.muted-day {
+  display: block !important;
+}
+
+.calendar-large .day-num {
+  height: 24px;
+  line-height: 24px;
+  min-width: 24px;
+  width: fit-content;
+  margin: 0;
+}
+
+.calendar-large .cal-item {
+  display: block;
+  width: 100%;
+  height: 25px !important;
+  min-height: 25px !important;
+  max-height: 25px !important;
+  padding: 5px 8px !important;
+  margin: 0 !important;
+  border-radius: 999px;
+  overflow: hidden !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 15px !important;
+  font-size: 11px !important;
+}
+
+.calendar-large .cal-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  max-width: 100%;
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  padding: 4px 9px !important;
+  margin: 0 !important;
+  border-radius: 999px;
+  line-height: 14px !important;
+  z-index: 3;
+}
+
+@media (max-width: 900px) {
+  .calendar-large .cal-day {
+    min-height: 104px !important;
+    max-height: 104px !important;
+    height: 104px !important;
+    padding: 10px 8px 8px !important;
+    grid-template-rows: 23px 24px 24px 24px;
+    gap: 4px !important;
+  }
+
+  .calendar-large .cal-item,
+  .calendar-large .cal-more {
+    height: 24px !important;
+    min-height: 24px !important;
+    max-height: 24px !important;
+  }
+}
+
+
+/* Dashboard calendar responsive sizing fix v3 */
+.calendar-card {
+  overflow: hidden;
+}
+
+.calendar-large {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.calendar-large .cal-head {
+  min-height: clamp(34px, 4.1vh, 46px);
+  display: grid;
+  place-items: center;
+}
+
+.calendar-large .cal-day {
+  position: relative;
+  min-width: 0;
+  min-height: clamp(82px, 10.4vh, 138px) !important;
+  height: clamp(82px, 10.4vh, 138px) !important;
+  max-height: clamp(82px, 10.4vh, 138px) !important;
+  padding: clamp(8px, 1.1vh, 13px) clamp(7px, .8vw, 11px) !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column;
+  gap: clamp(4px, .65vh, 6px) !important;
+  align-content: stretch;
+}
+
+.calendar-large .cal-day.muted-day {
+  display: block !important;
+}
+
+.calendar-large .day-num {
+  flex: 0 0 auto;
+  height: clamp(20px, 2.4vh, 26px);
+  min-height: clamp(20px, 2.4vh, 26px);
+  line-height: clamp(20px, 2.4vh, 26px);
+  margin: 0;
+  z-index: 2;
+}
+
+.calendar-large .cal-item {
+  flex: 0 0 auto;
+  width: 100%;
+  height: clamp(22px, 2.8vh, 28px) !important;
+  min-height: clamp(22px, 2.8vh, 28px) !important;
+  max-height: clamp(22px, 2.8vh, 28px) !important;
+  padding: 4px 8px !important;
+  margin: 0 !important;
+  border-radius: 999px;
+  overflow: hidden !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.15 !important;
+  font-size: clamp(10px, .72vw, 11px) !important;
+}
+
+.calendar-large .cal-more {
+  flex: 0 0 auto;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  width: fit-content;
+  max-width: 100%;
+  height: clamp(22px, 2.8vh, 27px) !important;
+  min-height: clamp(22px, 2.8vh, 27px) !important;
+  max-height: clamp(22px, 2.8vh, 27px) !important;
+  padding: 4px 9px !important;
+  margin: 0 !important;
+  border-radius: 999px;
+  line-height: 1 !important;
+  z-index: 3;
+  overflow: hidden;
+}
+
+@media (min-height: 900px) and (min-width: 1200px) {
+  .calendar-large .cal-day {
+    min-height: 132px !important;
+    height: 132px !important;
+    max-height: 132px !important;
+  }
+}
+
+@media (max-height: 780px) {
+  .calendar-large .cal-day {
+    min-height: 88px !important;
+    height: 88px !important;
+    max-height: 88px !important;
+  }
+
+  .calendar-large .cal-item,
+  .calendar-large .cal-more {
+    height: 22px !important;
+    min-height: 22px !important;
+    max-height: 22px !important;
+    font-size: 10px !important;
+  }
+}
+
+@media (max-width: 980px) {
+  .calendar-large .cal-day {
+    min-height: clamp(78px, 9.4vh, 112px) !important;
+    height: clamp(78px, 9.4vh, 112px) !important;
+    max-height: clamp(78px, 9.4vh, 112px) !important;
+  }
+}
+
 </style>
 
 
@@ -573,10 +865,13 @@ render_header('Dashboard');
       <?php for($d=1;$d<=$daysInMonth;$d++): $date=$month.'-'.str_pad((string)$d,2,'0',STR_PAD_LEFT); ?>
         <div class="cal-day <?= $date === $today ? 'today' : '' ?>">
           <div class="day-num"><?= $d ?></div>
-          <?php foreach(array_slice($events[$date] ?? [],0,4) as $ev): ?>
+          <?php $dayEvents = $events[$date] ?? []; ?>
+          <?php foreach(array_slice($dayEvents, 0, 1) as $ev): ?>
             <button class="cal-item" type="button" data-task-open data-task='<?= e($ev['task_json']) ?>'><?= e($ev['title']) ?></button>
           <?php endforeach; ?>
-          <?php if(count($events[$date] ?? []) > 4): ?><span class="cal-more">+<?= count($events[$date]) - 4 ?> more</span><?php endif; ?>
+          <?php if(count($dayEvents) > 1): ?>
+            <button class="cal-more" type="button" data-day-open data-date="<?= e(date('F d, Y', strtotime($date))) ?>" data-day-tasks='<?= e(json_encode(array_map(static fn($item) => json_decode((string)$item['task_json'], true), $dayEvents), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)) ?>'>+<?= count($dayEvents) - 1 ?> more</button>
+          <?php endif; ?>
         </div>
       <?php endfor; ?>
     </div>
@@ -609,6 +904,22 @@ render_header('Dashboard');
   </aside>
 </div>
 
+
+<div class="modal-backdrop" data-day-modal hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="dayModalTitle">
+    <div class="task-modal-head">
+      <button class="modal-close" type="button" data-close-day-modal aria-label="Close day task list">×</button>
+      <span class="eyebrow">Calendar Day</span>
+      <h2 id="dayModalTitle" data-day-modal-title>Tasks</h2>
+      <div class="modal-meta" data-day-modal-meta></div>
+    </div>
+
+    <div class="task-modal-body">
+      <div class="day-task-list" data-day-task-list></div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" data-task-modal hidden>
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
     <div class="task-modal-head">
@@ -628,4 +939,116 @@ render_header('Dashboard');
     </div>
   </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const dayModal = document.querySelector('[data-day-modal]');
+  const dayTitle = document.querySelector('[data-day-modal-title]');
+  const dayMeta = document.querySelector('[data-day-modal-meta]');
+  const dayList = document.querySelector('[data-day-task-list]');
+  const closeDay = document.querySelector('[data-close-day-modal]');
+
+  function openTaskFromData(task) {
+    const opener = document.createElement('button');
+    opener.type = 'button';
+    opener.hidden = true;
+    opener.setAttribute('data-task-open', '');
+    opener.setAttribute('data-task', JSON.stringify(task || {}));
+    document.body.appendChild(opener);
+    opener.click();
+    opener.remove();
+  }
+
+  function openDayModal(dateLabel, tasks) {
+    if (!dayModal || !dayList) return;
+
+    dayTitle.textContent = dateLabel || 'Calendar Tasks';
+    dayMeta.textContent = (tasks.length || 0) + ' scheduled visit' + (tasks.length === 1 ? '' : 's');
+    dayList.innerHTML = '';
+
+    tasks.forEach(function (task) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'day-task-button';
+
+      const title = task.title || task.doctor || 'Scheduled Visit';
+      const metaParts = [task.start, task.rep, task.hospital || task.city].filter(Boolean);
+
+      button.innerHTML = '<strong></strong><span></span>';
+      button.querySelector('strong').textContent = title;
+      button.querySelector('span').textContent = metaParts.join(' · ');
+
+      button.addEventListener('click', function () {
+        dayModal.hidden = true;
+        openTaskFromData(task);
+      });
+
+      dayList.appendChild(button);
+    });
+
+    dayModal.hidden = false;
+  }
+
+  document.addEventListener('click', function (event) {
+    const moreButton = event.target.closest('[data-day-open]');
+    if (!moreButton) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    let tasks = [];
+    try {
+      tasks = JSON.parse(moreButton.getAttribute('data-day-tasks') || '[]');
+    } catch (error) {
+      tasks = [];
+    }
+
+    openDayModal(moreButton.getAttribute('data-date') || 'Calendar Tasks', tasks);
+  });
+
+  if (closeDay) {
+    closeDay.addEventListener('click', function () {
+      dayModal.hidden = true;
+    });
+  }
+
+  if (dayModal) {
+    dayModal.addEventListener('click', function (event) {
+      if (event.target === dayModal) {
+        dayModal.hidden = true;
+      }
+    });
+  }
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && dayModal && !dayModal.hidden) {
+      dayModal.hidden = true;
+    }
+  });
+});
+</script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  function tuneDashboardCalendar() {
+    document.querySelectorAll('.calendar-large .cal-day:not(.muted-day)').forEach(function (cell) {
+      const moreButton = cell.querySelector('.cal-more');
+      const items = Array.from(cell.querySelectorAll('.cal-item'));
+      if (!items.length && !moreButton) return;
+
+      const cellHeight = cell.getBoundingClientRect().height;
+      const compact = cellHeight < 100;
+
+      items.forEach(function (item, index) {
+        item.style.display = compact && index > 0 ? 'none' : '';
+      });
+    });
+  }
+
+  tuneDashboardCalendar();
+  window.addEventListener('resize', tuneDashboardCalendar);
+});
+</script>
+
 <?php render_footer(); ?>
