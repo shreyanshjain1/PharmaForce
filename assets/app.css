@@ -506,6 +506,7 @@ body{
 }
 
 .expense-shell input[type="number"]{
+  appearance:textfield;
   -moz-appearance:textfield;
 }
 
